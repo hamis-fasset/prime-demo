@@ -1,0 +1,12 @@
+Copy the two variable font files into this folder (binary files can't be written
+by the agent toolchain, so this is a one-time manual step):
+
+cp "../../../../../context/fasset-biz-design-system/assets/fonts/GeneralSans-Variable.woff2" .
+cp "../../../../../context/fasset-biz-design-system/assets/fonts/GeistMono-Variable.woff2" .
+
+(Run from this directory. Absolute source:
+ Operating System/pm-os/products/prime/context/fasset-biz-design-system/assets/fonts/)
+
+Until they are copied, css/tokens.css falls back to loading the same files
+directly from the design-system bundle via a relative URL, so the prototype
+still renders with the correct faces as long as the repo layout is intact.

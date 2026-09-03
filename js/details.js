@@ -36,12 +36,12 @@
   function tradeTimeline(t) {
     if (t.state === "failed") {
       return [
-        { label: "Placed", state: "done", time: UI.fmtTs(t.stamps.placed || t.ts) },
+        { label: "Initiated", state: "done", time: UI.fmtTs(t.stamps.placed || t.ts) },
         { label: "Failed", sub: "the funding window ran out · nothing was taken", state: "failed" }
       ];
     }
     return [
-      { label: "Placed", state: "done", time: UI.fmtTs(t.stamps.placed || t.ts) },
+      { label: "Initiated", state: "done", time: UI.fmtTs(t.stamps.placed || t.ts) },
       { label: t.state === "awaiting" ? "Awaiting funding" : "Funded",
         state: t.state === "awaiting" ? "pending" : "done",
         time: t.stamps.funded ? UI.fmtTs(t.stamps.funded) : "" },
@@ -57,7 +57,7 @@
     return '<div class="def-group">' +
         rowStrong("Trade", UI.esc(t.id)) +
         row("Status", tradeStatus(t)) +
-        row("Placed by", t.byDesk ? "The desk, for you" : "You") +
+        row("Initiated by", t.byDesk ? "The desk, for you" : "You") +
       "</div>" +
       '<div class="txd-legs">' +
         '<div class="txd-leg"><span class="txd-what"><span class="tx-label">Purchased</span><span class="txd-cur">' + ccy(buyU ? "USDT" : f) + "</span></span>" +

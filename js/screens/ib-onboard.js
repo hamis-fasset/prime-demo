@@ -96,20 +96,21 @@
 
     if (r === "not_started") {
       return head("Introduce clients to Fasset Prime.",
-        "Four steps, always as an individual. About ten minutes, and a human reviews it.") +
+        "Four steps, as an individual. About ten minutes, and a human reviews it.") +
         stepList() + cta("Start", "ibjStart");
     }
 
     if (r === "in_progress") {
       return head("Pick up where you left off.",
-        "Your progress saves at every step" + (j.stepsDone ? ", and you’re " + j.stepsDone + " of " + STEPS.length + " in" : "") + ".") +
+        (j.stepsDone
+          ? "You’re " + j.stepsDone + " of " + STEPS.length + " in."
+          : "Your progress saves at every step.")) +
         stepList() + cta("Resume", "ibjStart");
     }
 
     if (r === "in_review") {
       return head("Your application is in review.",
-        "Submitted <strong>" + UI.esc(UI.fmtDate(j.submittedIso || new Date().toISOString())) + "</strong>. A human reviewer is on it, and we’ll notify you the moment anything changes.") +
-        '<div class="ob-body"><div class="note note-info">If anything needs fixing, the reviewer’s comments appear here.</div></div>';
+        "Submitted <strong>" + UI.esc(UI.fmtDate(j.submittedIso || new Date().toISOString())) + "</strong>. A human reviewer is on it.");
     }
 
     if (r === "needs_info") {
@@ -135,7 +136,7 @@
     if (r === "rejected") {
       return head("Application declined.",
         "Reason: <strong>" + UI.esc(j.rejectedReason || "Regulatory status could not be verified") + "</strong>.") +
-        '<div class="ob-body"><div class="note note-error">This decision applies to the application as submitted.</div>' +
+        '<div class="ob-body">' +
         '<p class="ob-sub"><strong>What you can do</strong></p>' +
         '<ul class="ob-list">' +
         "<li>If your regulatory status has changed, reapply with the licence or registration attached.</li>" +
@@ -180,10 +181,10 @@
           '<div class="hint">Issued in the last 3 months, in your name.</div></div>';
       } else if (idx === 2) {
         b += '<div class="field"><label>The agreement, in short</label>' +
-          '<div class="ibw-terms">You earn <strong>0.10% of settled notional</strong> traded by clients you introduce, accrued per trade and paid <strong>monthly</strong> to your verified payout account. Shared introductions pay your agreed split. You see clients’ trading activity only, never balances or funding.</div>' +
+          '<div class="ibw-terms">You earn <strong>0.10% of settled notional</strong> traded by clients you introduce. Accrued per trade, paid <strong>monthly</strong> to your verified payout account. Shared introductions pay your agreed split.</div>' +
           '<label class="ibw-ack"><input type="checkbox" id="ibwAgree"' + (vals.agreed ? " checked" : "") + ">" +
           "<span>I’ve read the full introducing broker agreement and I agree to it.</span></label>" +
-          '<div class="hint err hide" id="ibwAgreeErr">Agree to the agreement to continue.</div></div>';
+          '<div class="hint err hide" id="ibwAgreeErr">Accept the agreement to continue.</div></div>';
       } else {
         b += '<div class="field"><label>How you want to be paid</label>' +
           '<button class="ibw-choice' + (!vals.payUsdt ? " sel" : "") + '" data-pay="bank" type="button">' +
@@ -194,7 +195,7 @@
             '<span class="wc-sub">The desk creates referral-karim-mansour for you at approval.</span></span></button>' +
           "</div>" +
           (vals.payUsdt
-            ? '<p class="freshline">Nothing to fill in. The container is created and named for you.</p>'
+            ? '<p class="freshline">Nothing to fill in.</p>'
             : '<div class="field"><label>Bank</label><input class="input" value="Emirates NBD"></div>' +
               '<div class="field"><label>IBAN</label><input class="input mono" value="AE12 0260 0009 8877 2210 034"></div>' +
               '<div class="field"><label>Account name</label><input class="input" value="Karim Mansour">' +

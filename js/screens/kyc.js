@@ -285,9 +285,9 @@
   }
 
   function leadershipHtml(ro) {
-    var h = '<p class="ob-sub flush">Directors and ultimate beneficial owners. Each person needs a name, phone, ID document, and ownership share. The total can’t go over 100 percent.</p>';
+    var h = '<p class="ob-sub flush">Directors and ultimate beneficial owners.</p>';
     if (!W.leaders.length) {
-      h += '<div class="empty">No directors or beneficial owners yet. Add at least one to continue.</div>';
+      h += '<div class="empty">Nobody added yet. Add at least one person to continue.</div>';
     }
     W.leaders.forEach(function (Ld, i) {
       var e = W.errs["L" + i] || {};
@@ -352,7 +352,7 @@
     if (Data.state.role === "viewer") {
       h += '<div class="note note-warning mt-16">Only an admin can work on the application. This step is read-only for you.</div>';
     } else if (stepLocked(i)) {
-      h += '<div class="note note-warning mt-16">This step wasn’t flagged, so it stays as you submitted it.</div>';
+      h += '<div class="note note-warning mt-16">This step wasn’t flagged. It stays as you submitted it.</div>';
     }
 
     h += commentsFor(i).map(function (c) {
@@ -373,8 +373,8 @@
         (W.step > 0 ? '<button class="btn btn-secondary" id="wizBack" type="button">Back</button>' : "") +
         '<button class="btn btn-primary" id="wizSave" type="button">Save and continue</button>' +
         '<span class="freshline">' + (W.lastSaved
-          ? "Last saved " + UI.esc(UI.fmtTs(W.lastSaved)) + ". You can leave and resume."
-          : "Progress saves at every step. You can leave and resume.") + "</span></div>";
+          ? "Last saved " + UI.esc(UI.fmtTs(W.lastSaved)) + "."
+          : "Progress saves at every step.") + "</span></div>";
     }
     return h;
   }
@@ -383,7 +383,7 @@
 
   function reviewHtml() {
     var h = '<h1 class="ob-title">Review your application.</h1>' +
-      '<p class="ob-sub">Everything you’re about to submit, in one place. Step ' + (W.steps.length + 1) + " of " + (W.steps.length + 1) + ".</p>";
+      '<p class="ob-sub">Everything you’re about to submit. Step ' + (W.steps.length + 1) + " of " + (W.steps.length + 1) + ".</p>";
 
     W.steps.forEach(function (st, i) {
       var chg = W.mode === "resub" && W.changed[i];
@@ -413,7 +413,7 @@
     var allDone = W.done.every(Boolean);
     h += '<div class="note rev-note ' + (allDone ? "note-info" : "note-warning") + '">' +
       (allDone
-        ? "Submitting sends this to the review team. You can follow it from your status page."
+        ? "Submitting sends this to the review team."
         : "Some steps aren’t complete yet. Finish them before submitting.") + "</div>";
 
     if (Data.state.role === "viewer") {
@@ -558,7 +558,7 @@
   function notesHtml() {
     var notes = "";
     if (W.mode === "resub") {
-      notes += '<div class="note note-warning wiz-note"><strong>Resubmit mode.</strong> Only the flagged steps are unlocked. Fix them, then resubmit from the review step.</div>';
+      notes += '<div class="note note-warning wiz-note">Only the flagged steps are unlocked. Resubmit from the review step when you’re done.</div>';
     }
     if (W.saveErr) {
       notes += '<div class="note note-error wiz-note">We couldn’t save this step. Your answers are still here. ' +

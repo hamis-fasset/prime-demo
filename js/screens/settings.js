@@ -160,7 +160,6 @@
           '<button class="btn btn-secondary" id="stCodes" type="button">View recovery codes</button>' +
           '<button class="btn btn-secondary" id="stPass" type="button">Change password</button>' +
         "</div>" +
-        '<p class="hint mt-12">Every change here takes a step-up confirmation.</p>' +
       "</div>" +
       '<div class="settings-aside" id="stSessions">' + sessionsHtml() + "</div>" +
       "</div></div>";
@@ -173,7 +172,6 @@
             '<span class="switch' + (p.on ? " on" : "") + '"><span class="knob"></span></span>' +
             '<span class="pref-label">' + UI.esc(p.label) + "</span></button>";
         }).join("") +
-        '<p class="hint mt-8">Email notifications follow the same preferences.</p>' +
       "</div></div>";
 
     // — agreements —

@@ -25,8 +25,8 @@
   var ARM_MS = 4000;      // an armed Remove disarms itself, it never traps you
 
   var ROLE_CAPS = [
-    { name: "Admin", desc: "Everything, including the whitelist and this team page." },
-    { name: "Trader", desc: "Trades and moves money to existing whitelisted destinations. Can’t add or remove destinations." },
+    { name: "Admin", desc: "Everything, including accounts and this team page." },
+    { name: "Trader", desc: "Trades and moves money to approved destinations. Can’t add or remove them." },
     { name: "Viewer", desc: "Sees everything, acts on nothing." }
   ];
 
@@ -39,7 +39,7 @@
   function memberStatus(m) {
     if (m.state === "invited") return UI.statusDot("warning", "Invited " + UI.fmtDate(m.invitedIso) + " · expires in " + daysLeft(m.invitedIso) + "d");
     if (m.state === "expired") return UI.statusDot("error", "Invite expired · they never joined");
-    if (m.state === "blocked") return UI.statusDot("warning", "Joined, MFA not enrolled · activation blocked");
+    if (m.state === "blocked") return UI.statusDot("warning", "Joined · MFA not enrolled");
     return UI.statusDot("positive", "Active");
   }
 
@@ -77,10 +77,9 @@
       '<div class="field"><label for="ivRole">Role</label>' +
       '<select id="ivRole" class="select">' +
         '<option value="viewer">Viewer · sees everything, acts on nothing</option>' +
-        '<option value="trader">Trader · trades and moves money, existing destinations only</option>' +
-        '<option value="admin">Admin · everything, including team and whitelist</option>' +
-      "</select>" +
-      '<div class="hint">They set up their own login and MFA before they can act.</div></div>',
+        '<option value="trader">Trader · trades and moves money, approved destinations only</option>' +
+        '<option value="admin">Admin · everything, including team and accounts</option>' +
+      "</select></div>",
       {
         width: 460,
         foot: '<button class="btn btn-secondary" id="ivCancel" type="button">Cancel</button>' +

@@ -82,6 +82,7 @@
     role: "admin",                    // admin | trader | viewer (demo preview)
     persona: "client",                // client | ib — which portal the demo shows
     pairOrder: ["USDT/AED", "USDT/USD", "USDT/EUR", "USDT/BHD"],  // client-pinned order (drag to reorder)
+    totalCur: "AED",                  // total-balance denomination: AED | USDT (client display pref)
     windowCopy: "30min",              // "30min" | "hours" (OQ9 copy toggle)
     stale: false,                     // balance feed interrupted
     firstRun: false,                  // zero-balance first-run state
@@ -136,8 +137,8 @@
       { id: "WL-4", label: "Market ops", net: "TRON", addr: "TXpQr7Vw2aZs5cLm8dKe4uYh1nB6fJ3g0t", state: "verified", added: agoIso(60 * 24 * 6), testTs: null, reason: null },
       { id: "WL-5", label: "Broker", net: "Ethereum", addr: "0x99Af10c2E44b7D06a913fF25C08bb1a2843DdE07", state: "rejected", added: agoIso(60 * 24 * 12), testTs: null, missing: [], reason: "This address failed screening and can't be whitelisted. Contact support if that looks wrong." }
     ],
-    // wallet states: pending → verified (client sends the Satoshi test) → tested · rejected
-    // client labels: Pending review → Test transfer → Approved · Rejected
+    // wallet states: submitted → pending → verified (client sends the Satoshi test) → tested · rejected
+    // client labels: Submitted → Pending review → Test transfer → Approved · Rejected
 
     banks: [
       { id: "B-1", bank: "Emirates NBD", iban: "AE45 0260 0010 1523 4404 471", title: "Delos Financial Limited", cur: "AED", state: "verified", added: agoIso(60 * 24 * 80), reason: null, byDesk: false },
@@ -145,7 +146,8 @@
       { id: "B-2", bank: "First Abu Dhabi Bank", iban: "AE07 0331 2345 6789 0129 902", title: "Delos Financial Limited", cur: "AED", state: "pending", added: agoIso(60 * 3), reason: null, byDesk: false },
       { id: "B-3", bank: "Mashreq", iban: "AE21 0330 0000 1098 7654 321", title: "Delos Holdings FZE", cur: "AED", state: "rejected", added: agoIso(60 * 24 * 20), reason: "Account name doesn't match your entity. Send a bank letter or IBAN certificate in the entity's legal name.", byDesk: false }
     ],
-    // bank states: pending → verified · rejected
+    // bank states: submitted → pending → verified · rejected
+    // client labels: Submitted → Pending review → Approved · Rejected
 
     team: [
       { name: "Reem Al Suwaidi", email: "reem.alsuwaidi@delos.ae", role: "admin", mfa: true, last: "now", state: "active", you: true },
@@ -423,11 +425,16 @@
     },
 
     addWallet: function (w) { // { label, net, addr }
+      // lands as Submitted, then the desk queue picks it up: Pending review.
+      // The flip is a push (mirroring the deposit detected → processing beat).
       var rec = { id: "WL-" + (nextIds.wallet++), label: w.label || "Unnamed wallet", net: w.net, addr: w.addr,
-        state: "pending", added: nowIso(), testTs: null, reason: null };
+        state: "submitted", added: nowIso(), reviewTs: null, testTs: null, reason: null };
       S.wallets.unshift(rec);
-      Data.notify("Wallet submitted", "Pending review.", "accounts");
+      Data.notify("Wallet submitted", "It goes to the desk for review.", "accounts");
       emit("whitelist");
+      setTimeout(function () {
+        if (rec.state === "submitted") { rec.state = "pending"; rec.reviewTs = nowIso(); emit("whitelist"); }
+      }, 2400);
       return rec;
     },
     // chain webhook: the client's Satoshi test — a small amount sent FROM
@@ -452,10 +459,13 @@
     },
     addBank: function (b) { // { bank, iban, title, cur }
       var rec = { id: "B-" + (nextIds.bank++), bank: b.bank, iban: b.iban, title: b.title, cur: b.cur,
-        state: "pending", added: nowIso(), reason: null, byDesk: false };
+        state: "submitted", added: nowIso(), reviewTs: null, reason: null, byDesk: false };
       S.banks.unshift(rec);
-      Data.notify("Bank account submitted", "Pending review.", "accounts");
+      Data.notify("Bank account submitted", "It goes to the desk for review.", "accounts");
       emit("whitelist");
+      setTimeout(function () {
+        if (rec.state === "submitted") { rec.state = "pending"; rec.reviewTs = nowIso(); emit("whitelist"); }
+      }, 2400);
       return rec;
     },
     removeBank: function (bankId) {
@@ -595,6 +605,12 @@
       var valid = order.filter(function (id) { return REF[id] !== undefined; });
       if (valid.length) { S.pairOrder = valid; emit("pins"); }
     },
+    // total-balance denomination toggle — a display pref, same bucket as pins
+    setTotalCur: function (cur) {
+      if (cur !== "AED" && cur !== "USDT") return;
+      S.totalCur = cur;
+      emit("pins");
+    },
     setRails: function (allLive) {
       for (var i = 1; i < S.rails.length; i++) S.rails[i].state = allLive ? "live" : "coming";
       emit("prefs");
@@ -690,8 +706,8 @@
       return t;
     },
     verifyOldestPending: function () { // desk: verifies the oldest pending whitelist entry
-      var w = S.wallets.filter(function (x) { return x.state === "pending"; }).pop();
-      var b = S.banks.filter(function (x) { return x.state === "pending"; }).pop();
+      var w = S.wallets.filter(function (x) { return x.state === "pending" || x.state === "submitted"; }).pop();
+      var b = S.banks.filter(function (x) { return x.state === "pending" || x.state === "submitted"; }).pop();
       var target = w && b ? (new Date(w.added) < new Date(b.added) ? w : b) : (w || b);
       if (!target) return null;
       target.state = "verified";
@@ -701,8 +717,8 @@
       return target;
     },
     rejectOldestPending: function () { // desk: rejects the oldest pending whitelist entry, with reason
-      var w = S.wallets.filter(function (x) { return x.state === "pending"; }).pop();
-      var b = S.banks.filter(function (x) { return x.state === "pending"; }).pop();
+      var w = S.wallets.filter(function (x) { return x.state === "pending" || x.state === "submitted"; }).pop();
+      var b = S.banks.filter(function (x) { return x.state === "pending" || x.state === "submitted"; }).pop();
       var target = w || b;
       if (!target) return null;
       target.state = "rejected";

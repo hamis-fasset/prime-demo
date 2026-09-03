@@ -298,6 +298,14 @@ button.stat-strip-cell:hover, a.stat-strip-cell:hover { background: var(--bg-hov
 }
 
 .tile-label { font-size: var(--text-12); color: var(--text-subtle); display: flex; align-items: center; gap: 6px; }
+/* one-line balance tile: swatch + typeset money, the code lives once */
+.tile-money {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--font-num); font-size: 20px; font-weight: var(--w-medium);
+  color: var(--text-strong); line-height: 1.2;
+  font-variant-numeric: tabular-nums; letter-spacing: -0.01em;
+}
+.tile-money .cat i { margin-right: 0; }
 .tile-value {
   font-family: var(--font-num);
   font-size: 20px;
@@ -434,7 +442,9 @@ button.open-block:hover { background: var(--bg-hover); transition: none; }
    light, white at 5% in dark. Named so the permitted hairline is greppable. */
 :root { --table-rule: var(--border-faint); }
 
-.table { width: 100%; }
+/* a table narrower than its columns' floor scrolls sideways in its own
+   container (the rows carry a computed min-width); the page never does */
+.table { width: 100%; overflow-x: auto; }
 
 .table-header {
   display: grid;
@@ -733,6 +743,10 @@ button.open-block:hover { background: var(--bg-hover); transition: none; }
 .seg-btn { padding: 4px 13px; border-radius: 999px; font-size: var(--text-12); color: var(--text-subtle); transition: color var(--dur-1) var(--ease); }
 .seg-btn:hover { color: var(--text-default); }
 .seg-btn.active { background: var(--card-bg); color: var(--text-strong); box-shadow: var(--elev-1); }
+/* mini seg: display prefs riding an eyebrow line (the hero denomination) */
+.seg-mini { padding: 2px; }
+.seg-mini .seg-btn { padding: 2px 9px; font-size: 11px; }
+.bal-label .seg-mini { margin-left: 10px; }
 
 /* table toolbar: search + filters */
 .tx-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
@@ -896,7 +910,32 @@ button.open-block:hover { background: var(--bg-hover); transition: none; }
 }
 .bare-sheet-wide { max-width: 960px; }
 
-/* ————— demo bar — prototype furniture, quiet ————— */
+/* ————— demo layer — prototype furniture, summoned, never ambient ————— */
+/* Everything demo (the bar, every screen's demo strip) hides until the
+   floating chip toggles body.demo-on. The product never shows its rigging. */
+.demo-chip {
+  position: fixed; right: 14px; bottom: 10px; z-index: 95;
+  font-size: 11px; color: var(--text-faint);
+  border: 1px solid var(--border); border-radius: 999px;
+  padding: 4px 12px; background: var(--bg-sunken);
+  transition: color var(--dur-1) var(--ease);
+}
+.demo-chip:hover { color: var(--text-default); }
+body.demo-on .demo-chip {
+  color: var(--text-strong); border-color: var(--border-strong);
+  bottom: calc(var(--demobar-h, 40px) + 10px);
+}
+body:not(.demo-on) { --demobar-h: 0px; }
+body:not(.demo-on) .demobar,
+body:not(.demo-on) .demo-strip,
+body:not(.demo-on) .demo-strip-wrap,
+body:not(.demo-on) .mv-demo,
+body:not(.demo-on) .ob-demo,
+body:not(.demo-on) .section:has(> .demo-strip) { display: none; }
+@media (max-width: 600px) {
+  .demo-chip { bottom: 66px; }
+  body.demo-on .demo-chip { bottom: calc(var(--demobar-h, 40px) + 66px); }
+}
 
 .demobar {
   position: fixed;
@@ -1137,11 +1176,16 @@ button.open-block:hover { background: var(--bg-hover); transition: none; }
    cells like the stat strip, no swatches, no tick colours. Each pair is
    its own cell: click goes to Trade, drag reorders (the client's pinned
    order, shared with the Trade pair picker). */
+/* rates head: the word "Rates" left, freshness dot right — the one place
+   "live" appears. A rate is a ticker line; a balance is typeset money. */
+.rr-head { display: flex; align-items: center; justify-content: space-between; margin-top: 24px; }
+.rr-title { font-size: var(--text-12); color: var(--text-subtle); }
+
 .rates-row {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   width: 100%;
-  margin-top: 20px;
+  margin-top: 10px;
 }
 .rates-row > * {
   display: block;
@@ -1158,11 +1202,12 @@ button.open-block:hover { background: var(--bg-hover); transition: none; }
 .rates-row > :first-child { border-left: none; padding-left: 0; }
 button.rr-cell { cursor: pointer; }
 button.rr-cell.dragging { opacity: 0.4; }
-.rates-row .rr-pair { display: block; font-size: var(--text-12); color: var(--text-subtle); }
+/* one-line ticker cell: pair and level inline, smaller than money */
+.rates-row .rr-pair { display: inline; font-size: var(--text-12); color: var(--text-subtle); }
 .rates-row .rr-rate {
-  display: block;
-  margin-top: 4px;
-  font-size: 20px;
+  display: inline;
+  margin-left: 8px;
+  font-size: 16px;
   font-weight: var(--w-medium);
   letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
@@ -1223,18 +1268,18 @@ button.rr-cell:hover .rr-pair { color: var(--text-default); }
   .mnav-item.active { color: var(--text-strong); }
   .mnav-item .icon { flex: none; }
 
-  /* tables scroll themselves; the page never scrolls sideways */
-  .table { overflow-x: auto; }
-  .table-header, .table .row { min-width: 620px; }
+  /* tables scroll themselves (base .table + per-table computed min-width);
+     the page never scrolls sideways */
 
-  /* stat strips stack two-up (900px already set this; keep the row gap) */
-  .stat-strip { row-gap: 20px; }
+  /* balances go single column: one-line tiles read as a ledger on a phone */
+  .stat-strip { grid-template-columns: 1fr; row-gap: 4px; }
+  .stat-strip > * { border-left: none; padding: 10px 0; }
 
   /* the rates row goes two-up */
   .rates-row { grid-template-columns: repeat(2, 1fr); row-gap: 12px; }
   .rates-row > * { padding-left: 14px; }
   .rates-row > :nth-child(odd) { border-left: none; padding-left: 0; }
-  .rates-row .rr-rate { font-size: 17px; }
+  .rates-row .rr-rate { font-size: 14px; }
 
   /* trade: the one centered object. Segments span, the amount is the
      hero, and the rail's tier/limit blocks are demoted (the panel's own
@@ -1243,8 +1288,8 @@ button.rr-cell:hover .rr-pair { color: var(--text-default); }
   .trade-grid { grid-template-columns: minmax(0, 1fr); }
   .tq-label-row { flex-wrap: wrap; }
   .tq-avail { white-space: normal; }
-  .seg { display: flex; width: 100%; min-width: 0; }
-  .seg .seg-btn {
+  .seg:not(.seg-mini) { display: flex; width: 100%; min-width: 0; }
+  .seg:not(.seg-mini) .seg-btn {
     flex: 1 1 0;
     min-width: 0;
     text-align: center;

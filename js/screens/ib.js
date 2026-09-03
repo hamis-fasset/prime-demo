@@ -38,14 +38,14 @@
   // ————— shared helpers —————
 
   function clientStatus(c) {
-    if (c.status === "onboarding") return UI.statusDot("info", "Onboarding · with compliance review");
+    if (c.status === "onboarding") return UI.statusDot("info", "Onboarding · in review");
     if (c.status === "dormant") return UI.statusDot("neutral", "Dormant · no trades in 60 days");
     return UI.statusDot("positive", "Active");
   }
 
   function tradeStatus(t) {
-    if (t.state === "settled") return UI.statusDot("positive", "Settled");
-    if (t.state === "settling") return UI.statusDot("info", "Settling");
+    if (t.state === "settled") return UI.statusDot("positive", "Completed");
+    if (t.state === "settling") return UI.statusDot("info", "Processing");
     return UI.statusDot("warning", "Awaiting funding");
   }
 
@@ -74,8 +74,7 @@
   // ————— ib-overview —————
 
   function ovDelta() {
-    return UI.statusDot("positive", "live · accrues as client trades settle") +
-      " · paid monthly";
+    return UI.statusDot("positive", "Live") + " · paid monthly";
   }
 
   function ovStrip() {
@@ -171,14 +170,12 @@
       '<div class="bal-delta" id="ibOvDelta">' + ovDelta() + "</div>" +
       "</div></div></div>";
 
-    h += '<div class="section"><div class="section-head"><h2>Your book</h2>' +
-      '<span class="link">linked by the desk at onboarding</span></div>' +
+    h += '<div class="section"><div class="section-head"><h2>Your book</h2></div>' +
       '<div class="stat-strip" id="ibOvStrip">' + ovStrip() + "</div></div>";
 
     h += '<div class="section"><div class="section-head"><h2>Client activity</h2>' +
       '<button class="link" data-go="ib-clients" type="button">All clients' + icon("arrowRight", 12) + "</button></div>" +
-      '<div id="ibOvActs">' + ovTable() + "</div>" +
-      '<p class="freshline mt-8">Trading activity only. Balances, funding and wallets are never shown.</p></div>';
+      '<div id="ibOvActs">' + ovTable() + "</div></div>";
 
     h += '<div class="section"><div class="demo-strip">' +
       '<span class="freshline">Demo · a client trade settling in Optimus, mirrored here.</span>' +
@@ -287,8 +284,7 @@
         ],
         rows: rows,
         empty: emptyTxt
-      }) +
-      '<p class="freshline mt-8">Trading activity only. Balances, funding and wallets are never shown.</p>';
+      });
   }
 
   function clRender(el) {
@@ -339,7 +335,7 @@
       key: "current",
       cells: [
         '<span class="cell-stack"><span class="name">' + UI.esc(Data.ibPeriodLabel()) + '</span><span class="desc">current period</span></span>',
-        UI.statusDot("info", "Accruing · closes on the last calendar day"),
+        UI.statusDot("info", "Accruing"),
         '<span class="amount pending">' + (vol ? UI.money("AED", vol, { dp: 0 }) : "—") + "</span>",
         '<span class="amount pending">' + (vol ? UI.money("AED", Data.ibAccrual()) : "—") + "</span>"
       ]
@@ -351,7 +347,7 @@
           '<span class="name">' + UI.esc(p.period) + "</span>",
           p.state === "paid"
             ? UI.statusDot("positive", "Paid " + UI.fmtDate(p.paidTs))
-            : UI.statusDot("warning", "With the desk · pays within 5 business days"),
+            : UI.statusDot("warning", "Scheduled · pays within 5 business days"),
           '<span class="amount">' + UI.money("AED", p.volumeAED, { dp: 0 }) + "</span>",
           '<span class="amount' + (p.state === "paid" ? " positive" : "") + '">' + UI.money("AED", p.amountAED, { dp: 0 }) + "</span>"
         ]
@@ -397,7 +393,7 @@
       '<div><div class="ih-name">' + (usdt
           ? "USDT · " + UI.esc(ib.payoutWallet.label)
           : UI.esc(ib.payoutBank.bank) + " ····" + UI.esc(ib.payoutBank.iban.replace(/\s/g, "").slice(-3))) + "</div>" +
-        '<div class="ih-desc">' + (usdt ? "Your Fireblocks container. Payouts go nowhere else." : "Your verified account, in your own name. Payouts go nowhere else.") + "</div></div>";
+        '<div class="ih-desc">' + (usdt ? "Your Fireblocks container." : "Your verified account, in your own name.") + "</div></div>";
   }
 
   // AED to their own bank account, or USDT to the desk-created Fireblocks
@@ -419,9 +415,7 @@
           UI.copyRow("IBAN", ib.payoutBank.iban, { mono: true, copy: ib.payoutBank.iban.replace(/\s/g, "") }) +
           UI.copyRow("Account name", ib.payoutBank.title)) +
       "</div>" +
-      '<p class="freshline mt-8">' + (usdt
-        ? "Created and named for you by the desk. Payouts convert at the day’s reference rate."
-        : "In your own name, verified by the desk.") + "</p>";
+      (usdt ? '<p class="freshline mt-8">Payouts convert at the day’s reference rate.</p>' : "");
   }
 
   function poBody(el) {
@@ -527,7 +521,7 @@
 
   App.registerScreen("ib-clients", {
     title: "Clients",
-    subtitle: "The clients you introduced. Trading activity only, never balances or funding",
+    subtitle: "The clients you introduced",
     zone: "app",
     render: clRender,
     onData: onDataFor(clPatch)

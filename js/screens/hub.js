@@ -106,7 +106,7 @@
 
   function act(label, id) {
     if (Data.state.role === "viewer") {
-      return '<p class="ob-sub">Only an admin can work on the application. You can follow its status here.</p>';
+      return '<p class="ob-sub">Only an admin can work on the application.</p>';
     }
     return '<div class="ob-cta-row"><button class="btn btn-primary btn-lg" id="' + id + '" type="button">' +
       UI.esc(label) + "</button></div>";
@@ -120,21 +120,21 @@
       var t = p ? p.total : total();
       var doneCount = p ? p.done : 0;
       return head(r === "not_started" ? "Ready when you are." : "Pick up where you left off.",
-        t + " steps, then a review before you submit. Your progress saves as you go" +
-        (r === "in_progress" && doneCount ? ", and you’re " + doneCount + " of " + t + " in" : "") + ".") +
+        (r === "in_progress" && doneCount
+          ? "You’re " + doneCount + " of " + t + " in."
+          : t + " steps. Your progress saves as you go.")) +
         act(r === "not_started" ? "Start verification" : "Resume", "hubResume");
     }
 
     if (r === "parked") {
       return head("Your application is being reviewed before onboarding opens.",
-        "Some applications get an extra look first. Nothing for you to do; we’ll email you the moment it moves.") +
+        "Nothing for you to do. We’ll email you the moment it moves.") +
         '<p class="ob-legal">Questions? Write to onboarding@fasset.com and include the email you signed up with.</p>';
     }
 
     if (r === "in_review") {
       return head("Your application is in review.",
-        "Submitted <strong>" + UI.esc(UI.fmtDate(J.submittedIso || new Date().toISOString())) + "</strong>. A human reviewer is on it, and we’ll notify you the moment anything changes.") +
-        '<div class="ob-body"><div class="note note-info">If anything needs fixing, the reviewer’s comments appear here.</div></div>' +
+        "Submitted <strong>" + UI.esc(UI.fmtDate(J.submittedIso || new Date().toISOString())) + "</strong>. A human reviewer is on it.") +
         '<div class="ob-cta-row"><button class="btn btn-secondary" id="hubMsg" type="button">Message us</button></div>';
     }
 
@@ -150,19 +150,18 @@
 
     if (r === "approved" && J.railsIssuing) {
       return head("You’re approved. Your deposit details are being set up.",
-        "Your AED vIBAN and USDT deposit address are being created. We’ll notify you the moment they’re ready.") +
+        "We’ll notify you the moment they’re ready.") +
         '<div class="ob-body"><div class="note note-info">Nothing to copy yet.</div></div>' +
         act("Go to dashboard", "hubGo");
     }
 
     if (r === "approved") {
-      return head("You’re approved and ready to fund.",
-        "Everything you need to fund is below.") +
+      return head("You’re approved and ready to fund.", "") +
         '<div class="ob-body">' +
         UI.copyRow("AED vIBAN", Data.VIBANS.AED.iban, { mono: true, copy: Data.VIBANS.AED.copy }) +
         UI.copyRow("Account name", Data.ACCOUNT_NAME) +
         UI.copyRow("USDT wallet", Data.USDT_ADDRS.TRC20 + " (TRC20)", { mono: true, copy: Data.USDT_ADDRS.TRC20 }) +
-        '<p class="freshline mt-8">Copy the account name exactly as shown, or the transfer fails the bank’s name check.</p>' +
+        '<p class="freshline mt-8">Copy the account name exactly as shown.</p>' +
         "</div>" +
         act("Go to dashboard", "hubGo");
     }
@@ -170,7 +169,7 @@
     if (r === "rejected") {
       return head("Application declined.",
         "Reason: <strong>" + UI.esc(J.rejectedReason || "Source of funds could not be verified") + "</strong>.") +
-        '<div class="ob-body"><div class="note note-error">This decision applies to the application as submitted.</div>' +
+        '<div class="ob-body">' +
         '<p class="ob-sub"><strong>What you can do</strong></p>' +
         '<ul class="ob-list">' +
         "<li>Reapply after 30 days with bank statements covering the last 6 months.</li>" +

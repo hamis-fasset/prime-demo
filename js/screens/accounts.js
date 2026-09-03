@@ -4,12 +4,17 @@
    one process, so it gets one home and a plain name).
 
    Client labels are the locked vocabulary:
-   · banks   Pending review → Approved · Rejected   (no test transfer:
-     the entity-name match at review is the control)
-   · wallets Pending review → Test transfer → Approved · Rejected
-     (the Satoshi test: the client sends any small amount FROM the
-     wallet TO their USDT deposit address; the chain webhook detects
+   · banks   Submitted → Pending review → Approved · Rejected   (no test
+     transfer: the entity-name match at review is the control)
+   · wallets Submitted → Pending review → Test transfer → Approved ·
+     Rejected (the Satoshi test: the client sends any small amount FROM
+     the wallet TO their USDT deposit address; the chain webhook detects
      it and approval is automatic)
+
+   2026-09-03 rework (Hamis): rows are clean and fully tappable; the
+   details drawer carries the lifecycle timeline, the rejection reason,
+   the test-transfer instructions (with the deposit address) and Remove.
+   Nothing actionable or explanatory lives in a row.
 
    Screening still happens at entry (a refused address is refused in
    the form, finally). Travel-rule fields are part of the add form —
@@ -22,6 +27,7 @@
 
   var loadedOnce = false;
   var TAB = "banks";          // banks | wallets
+  var QUEUED_ADD = null;      // currency queued by Withdraw's "Add" CTA
   var armScreen = false;      // demo: next submitted address fails screening
   var screened = [];          // addresses already refused by screening
   var TESTED = null;          // wallet ids already approved (for the settle)
@@ -44,6 +50,7 @@
   // ————— the locked labels —————
 
   function walletStatus(state) {
+    if (state === "submitted") return UI.statusDot("info", "Submitted");
     if (state === "pending") return UI.statusDot("warning", "Pending review");
     if (state === "verified") return UI.statusDot("warning", "Test transfer");
     if (state === "tested") return UI.statusDot("positive", "Approved");
@@ -52,16 +59,11 @@
   }
 
   function bankStatus(state) {
+    if (state === "submitted") return UI.statusDot("info", "Submitted");
     if (state === "pending") return UI.statusDot("warning", "Pending review");
     if (state === "verified") return UI.statusDot("positive", "Approved");
     if (state === "rejected") return UI.statusDot("error", "Rejected");
     return UI.statusDot("neutral", state);
-  }
-
-  function walletSub(w) {
-    if (w.state === "rejected") return { err: true, txt: w.reason };
-    if (w.state === "verified") return { err: false, txt: "Send any small amount from this wallet to your USDT deposit address. Approval is automatic." };
-    return null;
   }
 
   // ————— screening at entry —————
@@ -171,7 +173,7 @@
 
   // ————— add bank account —————
 
-  function openAddBank() {
+  function openAddBank(presetCur) {
     var h = UI.drawer("Add a bank account",
       '<div class="steps" style="margin-bottom:16px"><span class="step active">Details</span><span class="sep">·</span>' +
         '<span class="step">Review</span><span class="sep">·</span>' +
@@ -199,6 +201,7 @@
 
     var up = wireUploader(h.el.querySelector("#abUp"));
     var q = function (s) { return h.el.querySelector(s); };
+    if (presetCur && presetCur !== "USDT") q("#abCur").value = presetCur;
     q("#abIban").focus();
     q("#abIban").addEventListener("input", function () {
       q("#abIbanErr").classList.add("hide");
@@ -259,34 +262,31 @@
     return { isDone: function () { return st.done; } };
   }
 
-  // ————— registries —————
+  // ————— registries — clean rows, every row opens the details drawer —————
+  // Reasons, test instructions and Remove all live in the drawer. A row is
+  // the fact (who · where · status · when) and a tap gets the rest.
 
   function walletsTable() {
     return '<div class="wl-table">' + UI.table({
       cols: [
         { label: "Wallet", w: "minmax(0, 1fr)" },
-        { label: "Network", w: "110px" },
+        { label: "Network", w: "130px" },
         { label: "Status", w: "170px" },
-        { label: "Added", w: "105px" },
-        { label: "", w: "110px", right: true }
+        { label: "Added", w: "105px" }
       ],
       rows: Data.state.wallets.map(function (w) {
-        var sub = walletSub(w);
         return {
           key: w.id,
+          clickable: true,
           cls: "wlrow",
           cells: [
             '<span class="cell-main"><span class="mv-idcell">' +
               '<span class="name">' + UI.esc(w.label) + "</span>" +
               '<span class="wl-addr">' + UI.esc(w.addr) + "</span>" +
-              (sub ? '<span class="wl-sub' + (sub.err ? " err" : "") + '">' + UI.esc(sub.txt) + "</span>" : "") +
               "</span></span>",
             '<span class="wl-net">' + ccy(w.net) + "</span>",
             walletStatus(w.state),
-            '<span class="date">' + UI.esc(UI.fmtDate(w.added)) + "</span>",
-            isAdmin()
-              ? '<span class="wl-actions"><button class="link wl-rm" data-wrm="' + UI.esc(w.id) + '" type="button">Remove</button></span>'
-              : '<span class="wl-actions"></span>'
+            '<span class="date">' + UI.esc(UI.fmtDate(w.added)) + "</span>"
           ]
         };
       }),
@@ -300,33 +300,142 @@
         { label: "Account", w: "minmax(0, 1fr)" },
         { label: "Bank", w: "170px" },
         { label: "Status", w: "170px" },
-        { label: "Added", w: "105px" },
-        { label: "", w: "110px", right: true }
+        { label: "Added", w: "105px" }
       ],
       rows: Data.state.banks.map(function (b) {
-        var sub = b.state === "rejected" ? { err: true, txt: b.reason }
-          : b.byDesk ? { err: false, txt: "Added by the desk." }
-          : null;
         return {
           key: b.id,
+          clickable: true,
           cls: "wlrow",
           cells: [
             '<span class="cell-main"><span class="mv-idcell">' +
               '<span class="name">' + UI.esc(b.title) + "</span>" +
               '<span class="wl-addr">' + UI.esc(b.iban) + "</span>" +
-              (sub ? '<span class="wl-sub' + (sub.err ? " err" : "") + '">' + UI.esc(sub.txt) + "</span>" : "") +
               "</span></span>",
             '<span class="desc">' + UI.esc(b.bank + " · " + b.cur) + "</span>",
             bankStatus(b.state),
-            '<span class="date">' + UI.esc(UI.fmtDate(b.added)) + "</span>",
-            isAdmin()
-              ? '<span class="wl-actions"><button class="link wl-rm" data-brm="' + UI.esc(b.id) + '" type="button">Remove</button></span>'
-              : '<span class="wl-actions"></span>'
+            '<span class="date">' + UI.esc(UI.fmtDate(b.added)) + "</span>"
           ]
         };
       }),
       empty: "No bank accounts yet."
     }) + "</div>";
+  }
+
+  // ————— the details drawer: lifecycle, reasons, the test, Remove —————
+
+  function drow(label, valueHtml, strong) {
+    return '<div class="def-row"><span class="def-label">' + UI.esc(label) +
+      '</span><span class="def-value' + (strong ? " strong" : "") + '">' + valueHtml + "</span></div>";
+  }
+
+  function walletTimeline(w) {
+    var t = [{ label: "Submitted", state: "done", time: UI.fmtTs(w.added) }];
+    if (w.state === "rejected") {
+      t.push({ label: "Rejected", sub: w.reason || "", state: "failed" });
+      return t;
+    }
+    t.push({ label: "Pending review",
+      state: w.state === "submitted" ? "todo" : w.state === "pending" ? "active" : "done",
+      time: w.reviewTs ? UI.fmtTs(w.reviewTs) : "" });
+    t.push({ label: "Test transfer",
+      state: w.state === "verified" ? "active" : w.state === "tested" ? "done" : "todo",
+      time: w.testTs ? UI.fmtTs(w.testTs) : "" });
+    t.push({ label: "Approved", state: w.state === "tested" ? "done" : "todo" });
+    return t;
+  }
+
+  function bankTimeline(b) {
+    if (b.byDesk) {
+      return [
+        { label: "Added by the desk", state: "done", time: UI.fmtTs(b.added) },
+        { label: "Approved", state: "done" }
+      ];
+    }
+    var t = [{ label: "Submitted", state: "done", time: UI.fmtTs(b.added) }];
+    if (b.state === "rejected") {
+      t.push({ label: "Rejected", sub: b.reason || "", state: "failed" });
+      return t;
+    }
+    t.push({ label: "Pending review",
+      state: b.state === "submitted" ? "todo" : b.state === "pending" ? "active" : "done",
+      time: b.reviewTs ? UI.fmtTs(b.reviewTs) : "" });
+    t.push({ label: "Approved", state: b.state === "verified" ? "done" : "todo" });
+    return t;
+  }
+
+  // the Satoshi test, mocked end to end: instruction + the deposit address to
+  // send to + a chain push. Visible only while the wallet waits on its test.
+  function walletTestBlock(w) {
+    var addr = w.net === "Ethereum" ? Data.USDT_ADDRS.ERC20 : Data.USDT_ADDRS.TRC20;
+    var net = w.net === "Ethereum" ? "ERC20" : "TRC20";
+    return '<div class="note note-warning mt-16">Send any small amount from this wallet to your USDT deposit address. Approval is automatic.</div>' +
+      '<div class="def-group mt-8">' +
+        drow("Send to", '<span style="font-family:var(--font-mono);font-size:var(--text-12)">' + UI.esc(addr) + "</span>") +
+        drow("Network", UI.esc(net)) +
+      "</div>" +
+      '<div class="mt-8">' + UI.statusDot("info", "Watching the chain for your transfer") + "</div>" +
+      '<div class="demo-strip mt-12"><span class="freshline">Demo · the chain.</span>' +
+        '<button class="db-btn" data-awd-test="' + UI.esc(w.id) + '" type="button">Transfer detected on-chain</button></div>';
+  }
+
+  function walletDetailsHtml(w) {
+    return '<div class="def-group">' +
+        drow("Wallet", UI.esc(w.label), true) +
+        drow("Status", walletStatus(w.state)) +
+        drow("Network", ccy(w.net)) +
+        drow("Address", '<span style="font-family:var(--font-mono);font-size:var(--text-12);word-break:break-all">' + UI.esc(w.addr) + "</span>") +
+      "</div>" +
+      (w.state === "verified" ? walletTestBlock(w) : "") +
+      '<div class="mt-16">' + UI.timeline(walletTimeline(w)) + "</div>";
+  }
+
+  function bankDetailsHtml(b) {
+    return '<div class="def-group">' +
+        drow("Account", UI.esc(b.title), true) +
+        drow("Status", bankStatus(b.state)) +
+        drow("Bank", UI.esc(b.bank)) +
+        drow("IBAN", '<span style="font-family:var(--font-mono);font-size:var(--text-12);word-break:break-all">' + UI.esc(b.iban) + "</span>") +
+        drow("Currency", ccy(b.cur)) +
+      "</div>" +
+      '<div class="mt-16">' + UI.timeline(bankTimeline(b)) + "</div>";
+  }
+
+  function openDetails(kind, id) {
+    var find = function () {
+      var list = kind === "wallet" ? Data.state.wallets : Data.state.banks;
+      return list.filter(function (x) { return x.id === id; })[0] || null;
+    };
+    var rec = find();
+    if (!rec) return;
+    var canRemove = isAdmin();
+    var refresh;
+    var h = UI.drawer(kind === "wallet" ? "Wallet details" : "Bank account details", "", {
+      width: 460,
+      onClose: function () { Data.off(refresh); },
+      foot: (canRemove ? '<button class="btn btn-secondary" id="awdRemove" type="button">Remove</button>' : "") +
+            '<button class="btn btn-secondary" id="awdClose" type="button">Close</button>'
+    });
+    function paintBody() {
+      var r = find();
+      if (!r) { h.close(); return; }
+      h.body.innerHTML = kind === "wallet" ? walletDetailsHtml(r) : bankDetailsHtml(r);
+      var t = h.body.querySelector("[data-awd-test]");
+      if (t) t.addEventListener("click", function () {
+        if (!Data.walletTestDetected(t.getAttribute("data-awd-test"))) UI.toast("No wallet awaiting its test transfer.", "blocked");
+      });
+    }
+    refresh = function (scope) { if (scope === "whitelist") paintBody(); };
+    Data.on(refresh);
+    paintBody();
+    h.el.querySelector("#awdClose").addEventListener("click", h.close);
+    var rm = h.el.querySelector("#awdRemove");
+    if (rm) rm.addEventListener("click", function () {
+      UI.stepUp("Removing a withdrawal destination takes effect immediately.", function () {
+        if (kind === "wallet") Data.removeWallet(id); else Data.removeBank(id);
+        h.close();
+      });
+    });
   }
 
   function tabsHtml() {
@@ -403,19 +512,11 @@
     }
 
     if (id === "registry") {
+      // the whole row is the tap target; everything else lives in the drawer
       node.addEventListener("click", function (e) {
-        var b = e.target.closest && e.target.closest("button");
-        if (!b) return;
-        var v;
-        if ((v = b.getAttribute("data-wrm"))) {
-          UI.stepUp("Removing a withdrawal destination takes effect immediately.", function () {
-            Data.removeWallet(v);
-          });
-        } else if ((v = b.getAttribute("data-brm"))) {
-          UI.stepUp("Removing a withdrawal destination takes effect immediately.", function () {
-            Data.removeBank(v);
-          });
-        }
+        var r = e.target.closest && e.target.closest(".row.clickable");
+        if (!r) return;
+        openDetails(TAB === "wallets" ? "wallet" : "bank", r.getAttribute("data-key"));
       });
       return;
     }
@@ -483,6 +584,15 @@
     paint("tabs", false);
     paint("registry", false);
     paint("demo", false);
+
+    // Withdraw's "Add a … account" CTA lands here with the form already open
+    if (QUEUED_ADD && isAdmin()) {
+      var cur = QUEUED_ADD;
+      QUEUED_ADD = null;
+      setTimeout(function () {
+        if (cur === "USDT") openAddWallet(); else openAddBank(cur);
+      }, 80);
+    }
   }
 
   App.registerScreen("accounts", {
@@ -495,6 +605,10 @@
     },
     zone: "app",
     openTab: function (t) { TAB = t === "wallets" ? "wallets" : "banks"; },
+    openAdd: function (cur) {
+      TAB = cur === "USDT" ? "wallets" : "banks";
+      QUEUED_ADD = cur || "AED";
+    },
     render: render,
     onData: function (scope) {
       if (!ROOT || !document.body.contains(ROOT) || !region("registry")) return false;

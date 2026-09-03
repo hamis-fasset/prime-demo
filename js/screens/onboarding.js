@@ -181,7 +181,7 @@
     var points = [
       { i: icon("clock", 16), t: "Firm quotes, not indications", s: "A real rate for your exact size, locked while you decide." },
       { i: icon("activity", 16), t: "Money you can follow", s: "See exactly where every deposit and withdrawal is, at every step." },
-      { i: icon("shieldCheck", 16), t: "Onboarding you can track", s: "Your application's status is always visible, and any fix request shows exactly what was flagged." }
+      { i: icon("shieldCheck", 16), t: "Onboarding you can track", s: "Your application's status is always visible, reviewed by a human." }
     ];
     el.insertAdjacentHTML("beforeend", sheet(
       head("Institutional OTC, without the back-and-forth.",
@@ -191,7 +191,7 @@
         return '<div class="ob-point">' + p.i + '<span><span class="pt-title">' + p.t + '</span><span class="pt-sub">' + p.s + "</span></span></div>";
       }).join("") + "</div>" +
       cta("Create your account", "obStart", { back: "login", backLabel: "I already have an account" }) +
-      '<p class="ob-legal">Email and password only. No invitation code, no salesperson.</p>',
+      '<p class="ob-legal">Email and password only. No invitation code.</p>',
       "ob-landing"));
     el.querySelector("#obStart").addEventListener("click", function () { go("email"); });
   }
@@ -288,7 +288,7 @@
   function stepPassword(el) {
     el.insertAdjacentHTML("beforeend", sheet(
       stepsLine(0) +
-      head("Choose a password.", "Prime accounts move seven-figure money, so the bar is a little higher than usual.") +
+      head("Choose a password.", "") +
       '<div class="ob-body">' +
       '<div class="field"><label for="obPass">Password</label>' +
       '<input id="obPass" class="input" type="password" autocomplete="off" value="' + UI.esc(L.pass) + '">' +
@@ -402,10 +402,11 @@
       UI.copyRow("Setup key", SETUP_KEY, { mono: true }) +
       '<div class="field mt-16"><label for="obCode">Confirm with a code from the app</label>' +
       '<input id="obCode" class="input input-code" inputmode="numeric" maxlength="6" placeholder="······" autocomplete="off">' +
-      '<div class="hint err' + (L.codeErr ? "" : " hide") + '" id="obCodeErr">That code isn’t right. Check the app and try again.</div>' +
-      '<div class="hint">Demo authenticator code: 123456</div></div>' +
+      '<div class="hint err' + (L.codeErr ? "" : " hide") + '" id="obCodeErr">That code isn’t right. Check the app and try again.</div></div>' +
       "</div>" +
       cta("Confirm code", "obConfirm", { back: "verify" })));
+
+    el.insertAdjacentHTML("beforeend", demo("", "Demo authenticator code 123456."));
 
     var code = el.querySelector("#obCode");
     code.focus();
@@ -444,7 +445,7 @@
     el.insertAdjacentHTML("beforeend", sheet(
       stepsLine(3) +
       head("Are you onboarding as an institution or an individual?",
-        "Three quick questions to route your application. Not a credit check.") +
+        "Three quick questions. Not a credit check.") +
       '<div class="ob-body">' +
       choices([
         { v: "institution", label: "An institution", sub: "A company, fund or trust.", icon: icon("building", 16), sel: L.entity === "institution" && !!L.vol },
@@ -460,7 +461,7 @@
   function stepQualVolume(el) {
     el.insertAdjacentHTML("beforeend", sheet(
       stepsLine(3) +
-      head("What monthly volume do you expect?", "An estimate is fine. It routes your application, it does not cap you.") +
+      head("What monthly volume do you expect?", "An estimate is fine, it doesn’t cap you.") +
       '<div class="ob-body">' + choices(VOLS.map(function (v) {
         return { v: v, label: v, sel: L.vol === v };
       })) + "</div>" +
@@ -474,7 +475,7 @@
       stepsLine(3) +
       head("Where do your funds come from?", "The jurisdiction the money is sent from.") +
       '<div class="ob-body">' +
-      '<div class="note note-info">Last question. Onboarding opens next.</div>' +
+      '<div class="note note-info">Last question.</div>' +
       '<div class="mt-16">' + choices(JURS.map(function (v) {
         return { v: v, label: v, sel: L.jur === v };
       })) + "</div></div>" +
@@ -509,8 +510,7 @@
       '<div class="field"><label for="liPass">Password</label>' +
       '<input id="liPass" class="input" type="password" autocomplete="off" value="fifteencharacters"></div>' +
       "</div>" +
-      cta("Continue", "liGo", { back: "landing", backLabel: "Create an account" }) +
-      '<p class="ob-legal">Logging in always asks for your authenticator code.</p>'));
+      cta("Continue", "liGo", { back: "landing", backLabel: "Create an account" })));
 
     el.querySelector("#liGo").addEventListener("click", function () { go("challenge"); });
     el.querySelector("#liPass").addEventListener("keydown", function (e) { if (e.key === "Enter") go("challenge"); });
@@ -523,8 +523,7 @@
       '<div class="field"><input id="mcCode" class="input input-code" inputmode="numeric" maxlength="6" placeholder="······" autocomplete="off">' +
       '<div class="hint err' + (L.codeErr ? "" : " hide") + '" id="mcErr">That code isn’t right. Check the app and try again.</div></div>' +
       '<div class="field' + (L.recOpen ? "" : " hide") + '" id="mcRecWrap"><label for="mcRec">Recovery code</label>' +
-      '<input id="mcRec" class="input mono" placeholder="XXXX-XXXX" autocomplete="off">' +
-      '<div class="hint">One of the single-use codes you saved at enrollment.</div></div>' +
+      '<input id="mcRec" class="input mono" placeholder="XXXX-XXXX" autocomplete="off"></div>' +
       "</div>" +
       cta("Verify", "mcGo", { back: "login" }) +
       '<div class="mt-12"><button class="link" id="mcRecLink" type="button">Use a recovery code instead</button></div>'));

@@ -11,7 +11,7 @@
    · the limit lives INSIDE the input as its placeholder ("Up to
      2,040,000"), not as standing copy. One quiet meta line under the
      object carries the tier label (Gold, by volume — never a rate).
-   · ONE full-width button that morphs in place: Get firm quote →
+   · ONE full-width button that morphs in place: Get quote →
      Execute at 3.6818 → (expired) Refresh quote. The object never
      jumps to a different screen shape.
    · on quote the sell card fills FIRM via per-digit assembly, a rate
@@ -21,7 +21,7 @@
      redemption drain on execute. It is still this screen's one
      saturated fill.
    · trade history below: Purchased · Sold · Rate (as a sentence) ·
-     Status · Placed. A row opens the shared TRADE DETAILS drawer
+     Status · Date. A row opens the shared TRADE DETAILS drawer
      (flat def-list + legs card with the rate chip between them +
      Repeat), the same grammar OpenFX reuses from every list.
    · failures unchanged in substance: expired (refresh in place),
@@ -265,12 +265,6 @@
       '<div class="tq-lock-secs" id="tqLockSecs" aria-live="polite" aria-atomic="true">' + UI.esc(secsText) + "</div></div>";
   }
 
-  function metaLine() {
-    if (Q.gtr) return '<p class="freshline tx-meta">Priced by the desk · quoted by your relationship manager</p>';
-    return '<p class="freshline tx-meta">Gold tier by 30-day volume · self-serve limit ' +
-      UI.money("AED", Data.LIMIT_AED, { dp: 0 }) + ' per trade <span class="tag">illustrative figures</span></p>';
-  }
-
   function coverage() {
     var payCur = side() === "buy" ? fiat() : "USDT";
     var payAmt = side() === "buy" ? Q.fiatFirm : Q.amtNum;
@@ -304,8 +298,10 @@
     if (Q.state === "idle") {
       return (S.stale ? '<div class="note note-warning tq-note" style="margin-bottom:16px">Rate feed interrupted, so nothing quotes on a stale price. Try again in a moment.</div>' : "") +
         objectHtml("idle") +
-        metaLine() +
-        '<button class="btn btn-primary btn-lg tx-cta" id="txGo" type="button">Get firm quote</button>' +
+        // the same reference level the dashboard rates row shows, in the same
+        // slot the firm rate lands in — the number never changes identity
+        '<div class="tx-quote-row"><span class="tx-rate-line">1 USDT = ' + rate4(Data.refRate(pairId())) + " " + UI.esc(fiat()) + "</span></div>" +
+        '<button class="btn btn-primary btn-lg tx-cta" id="txGo" type="button">Get quote</button>' +
         '<p class="freshline mt-12" style="text-align:center">Firm for your exact size, locked for ' + Data.LOCK_SECS + " seconds.</p>";
     }
 
@@ -348,7 +344,7 @@
 
     if (Q.state === "placed") {
       var t = Q.booked;
-      var head = t.state === "awaiting" ? "Order placed · awaiting funding"
+      var head = t.state === "awaiting" ? "Order initiated · awaiting funding"
         : t.state === "settling" ? "Funded · booked at your locked rate" : "Completed";
       var note = t.state === "awaiting"
         ? '<div class="note note-warning tq-note mt-16">Your rate is locked. ' + UI.money(t.payCur, t.needed) +
@@ -388,7 +384,7 @@
       '<div class="def-row"><span class="def-label">Locked rate</span><span class="def-value strong" id="tqBookedRate">' + rate4(t.rate) + "</span></div>" +
       '<div class="def-row"><span class="def-label">USDT</span><span class="def-value">' + UI.money("USDT", t.assetAmt, { dp: 0 }) + "</span></div>" +
       '<div class="def-row"><span class="def-label">' + UI.esc(Data.fiatOf(t.pair)) + '</span><span class="def-value">' + UI.money(Data.fiatOf(t.pair), t.fiatAmt) + "</span></div>" +
-      '<div class="def-row"><span class="def-label">Placed</span><span class="def-value">' + UI.esc(UI.fmtTs(t.ts)) + "</span></div>" +
+      '<div class="def-row"><span class="def-label">Initiated</span><span class="def-value">' + UI.esc(UI.fmtTs(t.ts)) + "</span></div>" +
       "</div>";
   }
 
@@ -432,7 +428,7 @@
         { label: "Sold", w: "190px" },
         { label: "Rate", w: "195px" },
         { label: "Status", w: "150px" },
-        { label: "Placed", w: "135px" }
+        { label: "Date", w: "135px" }
       ],
       rows: rows,
       empty: "No trades yet."
@@ -616,6 +612,13 @@
     subtitle: "A firm, executable rate for your exact size, locked while you commit",
     zone: "app",
     prefill: function (t) { repeat(t); },
+    // dashboard rates row → Trade lands on the pair the client tapped,
+    // showing the same reference level they just read
+    setPair: function (pair) {
+      if (!Q) initQ();
+      var f = Data.fiatOf(pair);
+      if (Q.state === "idle" && Data.railLive(f)) { Q.buyCur = "USDT"; Q.sellCur = f; }
+    },
     render: render,
     // protect a running lock: nothing here rebuilds the panel from a webhook.
     // History and the cards' balance lines patch in place; a full render

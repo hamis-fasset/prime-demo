@@ -70,21 +70,33 @@
     return Data.state.firstRun ? 0 : Data.totalAedApprox();
   }
 
-  // ————— the hero's second line —————
+  // ————— the hero: total balance in the client's chosen denomination —————
+  // The freshline is gone (2026-09-03): balances move only on confirmed
+  // events, they are facts, not a feed. Freshness lives on the rates head.
 
-  function deltaHtml() {
-    // freshness only. Money in motion lives in ONE place: In flight now
-    // (declutter cut, 2026-09-03).
-    return Data.state.stale
-      ? UI.statusDot("warning", "feed interrupted · last-known values from " + UI.fmtTs(new Date(Date.now() - 9 * 60000).toISOString()))
-      : UI.statusDot("positive", "live · updated " + UI.fmtTime());
+  function heroTotal() {
+    var aed = liveTotal();
+    return Data.state.totalCur === "USDT" ? aed / Data.refRate("USDT/AED") : aed;
   }
+
+  function heroSeg() {
+    return '<span class="seg seg-mini">' + ["AED", "USDT"].map(function (c) {
+      return '<button class="seg-btn' + (Data.state.totalCur === c ? " active" : "") +
+        '" data-totcur="' + c + '" type="button">' + c + "</button>";
+    }).join("") + "</span>";
+  }
+
+  function heroLabelHtml() { return "Total balance" + heroSeg(); }
 
   // ————— reference rates: the row that replaced the line —————
   // Indicative, never a quote. Rates are non-money figures, so they
   // assemble through UI.digits. No swatches, no tick colours, no arrows:
   // level plus timestamp is what a professional expects from a reference
   // line, and direction colour would collide with the status vocabulary.
+  // THE ANATOMY RULE (2026-09-03): a rate is a ticker line — pair and
+  // level inline, small; a balance is typeset money — swatch + moneyHero.
+  // Swatch means "you hold this"; no swatch means "market level". The
+  // "live" dot belongs to the rates head and nowhere near a balance.
 
   // each pair is its own cell: click goes to Trade, drag reorders. The order
   // is the client's pinned preference (Data.state.pairOrder) and the Trade
@@ -102,14 +114,15 @@
     }).join("") + "</div>";
   }
 
-  function ratesCaption() {
-    return Data.state.stale
-      ? "Market reference · last-known, updated " + UI.esc(UI.fmtTime(new Date(Date.now() - 9 * 60000).toISOString()))
-      : "Market reference · indicative";
+  function ratesHead() {
+    var dot = Data.state.stale
+      ? UI.statusDot("warning", "last known · updated " + UI.fmtTime(new Date(Date.now() - 9 * 60000).toISOString()))
+      : UI.statusDot("positive", "live · updated " + UI.fmtTime());
+    return '<div class="rr-head"><span class="rr-title">Rates</span>' + dot + "</div>";
   }
 
   function ratesHtml() {
-    return ratesRow() + '<div class="freshline mt-8">' + ratesCaption() + "</div>";
+    return ratesHead() + ratesRow();
   }
 
   // drag-to-reorder wiring; one binding per node, same guard style as bind()
@@ -137,14 +150,9 @@
     });
   }
 
-  // ————— per-currency cell: open typography, identity in the label —————
-
-  function railStatus(cur) {
-    if (cur === "USDT") return UI.statusDot("positive", "live");
-    return Data.railLive(cur)
-      ? UI.statusDot("positive", "live")
-      : UI.statusDot("neutral", "not yet live");
-  }
+  // ————— per-currency cell: one line, the code lives once, in the money —————
+  // No dot, no "live": a rendered balance on a live rail is self-evidently
+  // current. The sub-line exists only for an exception (a not-yet-live rail).
 
   function currencyCell(cur) {
     var live = Data.railLive(cur);
@@ -153,14 +161,13 @@
 
     // the tile is the balance and nothing else. Tapping it opens that
     // currency's balance view (deposit details, statements, ledger).
-    var value = live
-      ? '<div class="tile-value">' + UI.moneyHero(cur, bal) + "</div>"
-      : '<div class="tile-value faint">—</div>';
+    var line = live
+      ? '<div class="tile-money">' + ccy(cur, { label: false }) + UI.moneyHero(cur, bal) + "</div>"
+      : '<div class="tile-money">' + ccy(cur, { label: false }) +
+          '<span class="money faint"><span class="money-sym">' + UI.esc(cur) + "</span>—</span></div>" +
+        '<div class="tile-sub">' + UI.statusDot("neutral", "not yet live") + "</div>";
 
-    return '<button class="stat-strip-cell" data-bal="' + UI.esc(cur) + '" type="button">' +
-      '<div class="tile-label">' + ccy(cur) + '<span style="margin-left:auto"></span>' + railStatus(cur) + "</div>" +
-      value +
-      "</button>";
+    return '<button class="stat-strip-cell" data-bal="' + UI.esc(cur) + '" type="button">' + line + "</button>";
   }
 
   function stripHtml() {
@@ -249,7 +256,17 @@
 
   function wireRegion(node) {
     if (!node) return;
-    bind(node, "[data-go-trade]", function () { App.go("trade"); });
+    bind(node, "[data-go-trade]", function (e) {
+      // a rates cell lands Trade on the pair the client tapped, so the level
+      // they just read is the level the screen quotes from
+      var p = e.currentTarget.getAttribute && e.currentTarget.getAttribute("data-rrpair");
+      var tr = App.screen("trade");
+      if (p && tr && tr.setPair) tr.setPair(p);
+      App.go("trade");
+    });
+    bind(node, "[data-totcur]", function (e) {
+      Data.setTotalCur(e.currentTarget.getAttribute("data-totcur"));
+    });
     bind(node, "[data-bal]", function (e) {
       var cur = e.currentTarget.getAttribute("data-bal");
       var b = App.screen("balance");
@@ -298,9 +315,8 @@
     // the account is funded, which is exactly when a new client wants it.
     h += '<div class="section">' +
       '<div class="bal-hero"><div>' +
-        '<div class="bal-label">Total balance</div>' +
-        '<div class="bal-value" id="dbHeroVal">' + UI.moneyHero("AED", total) + "</div>" +
-        '<div class="bal-delta" id="dbHeroDelta">' + deltaHtml() + "</div>" +
+        '<div class="bal-label" id="dbHeroLabel">' + heroLabelHtml() + "</div>" +
+        '<div class="bal-value" id="dbHeroVal">' + UI.moneyHero(S.totalCur, heroTotal()) + "</div>" +
       "</div></div>" +
       '<div id="dbRates">' + ratesHtml() + "</div>";
 
@@ -341,8 +357,7 @@
     // the paint signatures start here, so the first patch only touches what
     // a confirmed event actually changed
     sig = {
-      hero: String(total),
-      delta: deltaHtml(),
+      hero: String(total) + ":" + S.totalCur,
       rates: ratesHtml(),
       strip: stripHtml(),
       act: activityHtml()
@@ -366,16 +381,15 @@
     var strip = document.getElementById("dbStrip");
     if (!strip) return false;                  // skeleton still up: let app.js render
 
-    var total = liveTotal();
-
     // balances only move on confirmed events, so the hero only repaints
-    // when the total actually changed
-    if (sig.hero !== String(total)) {
-      sig.hero = String(total);
-      repaint(document.getElementById("dbHeroVal"), UI.moneyHero("AED", total));
+    // when the total (or its denomination) actually changed
+    var totKey = String(liveTotal()) + ":" + Data.state.totalCur;
+    if (sig.hero !== totKey) {
+      sig.hero = totKey;
+      repaint(document.getElementById("dbHeroVal"), UI.moneyHero(Data.state.totalCur, heroTotal()));
+      var lbl = document.getElementById("dbHeroLabel");
+      if (lbl) { lbl.innerHTML = heroLabelHtml(); wireRegion(lbl); }
     }
-    var dh = deltaHtml();
-    if (sig.delta !== dh) { sig.delta = dh; repaint(document.getElementById("dbHeroDelta"), dh); }
 
     paint("dbRates", ratesHtml(), "rates");
     wireRatesDnd(document.getElementById("dbRates"));

@@ -198,6 +198,17 @@
     var dataCols = cols.filter(function (c) { return !c.spacer; }).length;
     var hasSpacer = dataCols !== cols.length;
 
+    // the table's real floor: fixed tracks at face value, 24px per spacer,
+    // 140px for a flexible identity column. Below this the grid would crush
+    // the identity track to 0 and columns would overprint, so header and rows
+    // carry it as min-width and .table's overflow-x scrolls instead (the
+    // 600px layer's flat 620px floor under-measured wide tables).
+    var minW = 0;
+    cols.forEach(function (c) {
+      var m = /^(\d+(?:\.\d+)?)px$/.exec(c.w || "");
+      minW += c.spacer ? 24 : m ? parseFloat(m[1]) : 140;
+    });
+
     // A row that carries one cell per data column gets its blank spacer cells
     // spliced in; anything else (a full-width detail row spanning 1 / -1) is
     // passed through untouched.
@@ -208,7 +219,7 @@
     }
 
     var h = '<div class="table">';
-    h += '<div class="table-header" style="grid-template-columns:' + grid + '">' +
+    h += '<div class="table-header" style="grid-template-columns:' + grid + ';min-width:' + minW + 'px">' +
       cols.map(function (c) {
         if (c.spacer) return "<span></span>";
         return '<span class="' + (c.right ? "h-right" : "") + '">' + UI.esc(c.label || "") + "</span>";
@@ -221,7 +232,7 @@
       if (r.group) return '<div class="group-label">' + UI.esc(r.group) + "</div>";
       var cls = "row" + (r.cls ? " " + r.cls : "") + (r.selected ? " selected" : "") + (r.clickable ? " clickable" : "");
       var tag = r.clickable ? "button" : "div";
-      return "<" + tag + ' class="' + cls + '" style="grid-template-columns:' + grid + '"' +
+      return "<" + tag + ' class="' + cls + '" style="grid-template-columns:' + grid + ';min-width:' + minW + 'px"' +
         (r.key ? ' data-key="' + UI.esc(r.key) + '"' : "") + (r.clickable ? ' type="button"' : "") + ">" +
         cellsFor(r.cells).join("") + "</" + tag + ">";
     }).join("");

@@ -360,9 +360,20 @@
     }
   });
 
-  // ————— demo bar (prototype furniture, not the product) —————
+  // ————— demo layer (prototype furniture, not the product) —————
+  // Hidden by default. The floating chip toggles body.demo-on, which reveals
+  // the bar AND every screen's demo strip (css: the demo layer rules).
 
   function renderDemoBar() {
+    var chip = document.createElement("button");
+    chip.className = "demo-chip";
+    chip.type = "button";
+    chip.textContent = "Demo";
+    chip.addEventListener("click", function () {
+      document.body.classList.toggle("demo-on");
+    });
+    document.body.appendChild(chip);
+
     var bar = document.createElement("div");
     bar.className = "demobar";
     bar.innerHTML =

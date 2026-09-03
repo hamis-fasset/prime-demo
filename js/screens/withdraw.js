@@ -44,13 +44,17 @@
         '<select id="wdDest" class="select"><option value="">Select a destination</option>' +
         dests.map(function (d) {
           return "<option" + (WD.dest === d.label ? " selected" : "") + ">" + UI.esc(d.label) + "</option>";
-        }).join("") + "</select></div>";
+        }).join("") + "</select></div>" +
+        '<button class="btn btn-primary btn-lg mt-16" id="wdNext" type="button">Continue</button>';
     } else {
-      h += '<div class="note note-warning">No approved ' + (WD.cur === "USDT" ? "wallets" : WD.cur + " accounts") +
-        ' yet. <button class="link" id="wdGoAcc" type="button">Add one in Accounts</button></div>';
+      // no destination for this currency: the next step IS the button
+      h += '<div class="field"><label>Destination</label>' +
+        '<p class="hint">No approved ' + (WD.cur === "USDT" ? "wallets" : WD.cur + " accounts") + " yet.</p></div>" +
+        '<button class="btn btn-primary btn-lg mt-16" id="wdGoAcc" type="button">' +
+          (WD.cur === "USDT" ? "Add a wallet" : "Add a " + WD.cur + " account") + "</button>";
     }
 
-    return h + '<button class="btn btn-primary btn-lg mt-16" id="wdNext" type="button"' + (dests.length ? "" : " disabled") + ">Continue</button></div>";
+    return h + "</div>";
   }
 
   function reviewBlock() {
@@ -136,7 +140,7 @@
       if (!b) return;
       if (b.id === "wdGoAcc") {
         var acc = App.screen("accounts");
-        if (acc && acc.openTab) acc.openTab(WD.cur === "USDT" ? "wallets" : "banks");
+        if (acc && acc.openAdd) acc.openAdd(WD.cur);
         App.go("accounts");
       }
       if (b.id === "wdNext") validateAndReview(node);
