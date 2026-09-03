@@ -90,20 +90,20 @@
 
   // ————— per-currency balance cards —————
   // Rates left the dashboard entirely (Hamis 2026-09-03): the dashboard shows
-  // what you HOLD, and pricing lives on Trade. Each balance is a tinted card
-  // in its identity hue — a deliberate Hamis override of the boxed-number
-  // ban — named properly ("UAE dirham", "Tether USD"), the amount in its
-  // proper symbol where a latin one exists. No dots, no "live": the only
-  // sub-line is the not-yet-live exception. The whole card taps through to
-  // the currency's balance view.
+  // what you HOLD, and pricing lives on Trade. Each balance is a card on the
+  // Trade object's warm-paper surface — a deliberate Hamis override of the
+  // boxed-number ban — identity carried by the 9px swatch beside the proper
+  // name ("UAE dirham", "Tether USD"), the amount in its proper symbol where
+  // a latin one exists. No dots, no "live": the only sub-line is the
+  // not-yet-live exception. The whole card taps through to the balance view.
 
   function currencyCell(cur) {
     var live = Data.railLive(cur);
     var fr = Data.state.firstRun;
     var bal = fr ? 0 : (Data.state.bal[cur] || 0);
 
-    return '<button class="bal-card cat-' + cur.toLowerCase() + '" data-bal="' + UI.esc(cur) + '" type="button">' +
-      '<span class="bc-name">' + UI.esc(Data.curName ? Data.curName(cur) : cur) + "</span>" +
+    return '<button class="bal-card" data-bal="' + UI.esc(cur) + '" type="button">' +
+      '<span class="bc-name">' + ccy(cur, { label: false }) + UI.esc(Data.curName ? Data.curName(cur) : cur) + "</span>" +
       (live
         ? '<span class="bc-amt">' + UI.moneyHero(cur, bal, { symbol: true }) + "</span>"
         : '<span class="bc-amt faint">—</span><span class="bc-sub">' + UI.statusDot("neutral", "not yet live") + "</span>") +

@@ -39,11 +39,12 @@
     }).join("") + "</div>";
   }
 
-  // ————— hero: the figure alone. The title names the currency. —————
+  // ————— hero: one quiet name line, then the figure —————
 
   function heroHtml() {
     var live = Data.railLive(CUR);
     return '<div class="bal-hero"><div>' +
+      '<div class="bal-label">' + UI.esc(name(CUR)) + " balance</div>" +
       '<div class="bal-value">' + (live ? UI.moneyHero(CUR, Data.state.bal[CUR] || 0, { symbol: true }) : "—") + "</div>" +
       (live ? "" : '<div class="bal-delta">' + UI.statusDot("neutral", "not yet live") + "</div>") +
       "</div></div>";
@@ -445,7 +446,8 @@
   }
 
   App.registerScreen("balance", {
-    title: function () { return name(CUR) + " balance"; },
+    title: "Balances",
+    subtitle: "What you hold, in each currency",
     actions: function () {
       var live = Data.railLive(CUR);
       if (!live) return "";

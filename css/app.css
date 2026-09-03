@@ -1177,32 +1177,34 @@ body:not(.demo-on) .section:has(> .demo-strip) { display: none; }
    cells like the stat strip, no swatches, no tick colours. Each pair is
    its own cell: click goes to Trade, drag reorders (the client's pinned
    order, shared with the Trade pair picker). */
-/* ————— per-currency balance cards — tinted identity surfaces —————
+/* ————— per-currency balance cards —————
    A deliberate Hamis override of the boxed-number ban (2026-09-03): each
-   balance is a card in its identity hue's 8% tint, the whole card taps
-   through to the currency's balance view. Rates left the dashboard the
-   same day: the dashboard shows what you hold, pricing lives on Trade. */
-.bal-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+   balance is a card, the whole card taps through to the currency's balance
+   view. Same hosted warm-paper surface as the Trade object (the pastel
+   identity tints died the same day: they read cheap). Identity lives where
+   it lives everywhere else — the 9px swatch, beside the currency's name —
+   and the amount is the standard tile money spec. */
+.bal-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
 .bal-card {
-  display: flex; flex-direction: column; gap: 10px; align-items: flex-start;
+  display: flex; flex-direction: column; gap: 14px; align-items: flex-start;
   min-width: 0;
   padding: 16px 18px 15px;
-  border-radius: var(--r-card);
+  background: var(--surface-2);
+  border-radius: 16px;
   text-align: left;
-  transition: transform var(--dur-1) var(--ease);
+  transition: background var(--dur-1) var(--ease);
 }
-.bal-card:hover { transform: translateY(-1px); }
-.bal-card.cat-aed  { background: color-mix(in srgb, var(--cat-7) 8%, transparent); }
-.bal-card.cat-usd  { background: color-mix(in srgb, var(--cat-4) 8%, transparent); }
-.bal-card.cat-eur  { background: color-mix(in srgb, var(--cat-1) 8%, transparent); }
-.bal-card.cat-bhd  { background: color-mix(in srgb, var(--text-faint) 8%, transparent); }
-.bal-card.cat-usdt { background: color-mix(in srgb, var(--cat-8) 8%, transparent); }
-.bal-card .bc-name { font-size: var(--text-12); color: var(--text-subtle); }
+.bal-card:hover { background: var(--bg-hover); transition: none; }
+.bal-card .bc-name {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: var(--text-12); color: var(--text-subtle);
+}
 .bal-card .bc-amt {
   max-width: 100%;
   overflow: hidden; text-overflow: ellipsis;
-  font-family: var(--font-num); font-size: 19px; font-weight: var(--w-medium);
-  color: var(--text-strong); font-variant-numeric: tabular-nums; letter-spacing: -0.01em;
+  font-family: var(--font-num); font-size: 20px; font-weight: var(--w-medium);
+  color: var(--text-strong); line-height: 1.2;
+  font-variant-numeric: tabular-nums; letter-spacing: -0.01em;
 }
 .bal-card .bc-sub { font-size: var(--text-12); }
 
