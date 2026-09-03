@@ -6,7 +6,7 @@
 
    Deposit:
    · per-currency detail cards, all rails live by default; the demo
-     bar's "today" mode gives USD/GBP the dark-rail treatment (no
+     bar's "today" mode gives the non-AED fiat rails the dark treatment (no
      account details are ever shown before the rail exists)
    · Data.ACCOUNT_NAME renders VERBATIM (confirmation of payee)
    · IBANs and the USDT address in mono copy rows, network choice
@@ -52,12 +52,12 @@
   var NET = "TRC20";                      // USDT network choice
   var EXP = { amt: "", note: "" };        // expected-deposit note (transient)
   var OPEN = {};                          // row key → expanded
-  var INTEREST = {};                      // "USD"/"GBP" → told-me-when-live
+  var INTEREST = {};                      // cur → told-me-when-live
   var WD = { cur: "AED", amt: "", dest: "", stage: "form", err: "" };
   var DONE = null;                        // terminal money events already marked
   var ROOT = null;                        // the live .screen element
 
-  var CURS = ["AED", "USD", "GBP", "USDT"];
+  var CURS = ["AED", "USD", "EUR", "BHD", "USDT"];
   // region shells, in page order. Deposit: rail cards · expected-transfer
   // note · USDT custody · incoming · demo. Withdraw: form + availability ·
   // (nothing) · (nothing) · withdrawals · demo.
@@ -86,7 +86,8 @@
   var RAIL_NOTE = {
     AED: "Send from an account in your entity’s name. Third-party transfers are held until you confirm the sender.",
     USD: "Send from an account in your entity’s name. USD wires can route through a correspondent bank.",
-    GBP: "Send from an account in your entity’s name."
+    EUR: "Send from an account in your entity’s name.",
+    BHD: "Send from an account in your entity’s name."
   };
 
   function railCard(cur) {
@@ -117,7 +118,7 @@
   function depRailsHtml() {
     return '<div class="section-head"><h2>Your deposit details · fiat</h2>' +
       '<span class="link">no need to tell us you’ve sent money</span></div>' +
-      '<div class="mv-depgrid">' + ["AED", "USD", "GBP"].map(railCard).join("") + "</div>";
+      '<div class="mv-depgrid">' + ["AED", "USD", "EUR", "BHD"].map(railCard).join("") + "</div>";
   }
 
   // the only surface in the app that represents Fasset holding your asset,

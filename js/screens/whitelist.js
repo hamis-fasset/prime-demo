@@ -332,7 +332,7 @@
       '<div class="field-row">' +
         '<div class="field"><label for="abBank">Bank</label><input id="abBank" class="input" placeholder="Emirates NBD" autocomplete="off"></div>' +
         '<div class="field mv-narrow"><label for="abCur">Currency</label>' +
-          '<select id="abCur" class="select"><option>AED</option><option>USD</option><option>GBP</option></select></div>' +
+          '<select id="abCur" class="select"><option>AED</option><option>USD</option><option>EUR</option><option>BHD</option></select></div>' +
       "</div>" +
       '<div class="field"><label for="abTitle">Account title · legal name</label>' +
         '<input id="abTitle" class="input" value="' + UI.esc(entity()) + '" autocomplete="off">' +

@@ -61,7 +61,7 @@
   };
 
   // ————— money — art-directed, never a flat string —————
-  // Fiat (AED/USD/GBP): full-strength code before the digits (the "symbol",
+  // Fiat (AED/USD/EUR/BHD): full-strength code before the digits (the "symbol",
   //   identical to the digits so live updates never shift), dimmed cents.
   // USDT: digits first, dimmed suffix code (never ₮).
   // opts: { sign: "+"|"−"|"", dp: decimals (default 2) }
@@ -148,7 +148,7 @@
   // nothing except "which rail". Never used for status: a 6px round dot is the
   // status vocabulary, a 9px squarish swatch is identity, and the two must
   // never be confusable.
-  //   cur   "AED" | "USD" | "GBP" | "USDT", or a network ("TRON" | "Ethereum" |
+  //   cur   "AED" | "USD" | "EUR" | "BHD" | "USDT", or a network ("TRON" | "Ethereum" |
   //         "Bitcoin") on the one table with no currency column, or "p1".."p4"
   //         for the connection map's pillars.
   //   opts  { chip: true } adds the 8% tint. Objects and hosted surfaces only,

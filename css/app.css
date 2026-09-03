@@ -282,7 +282,7 @@ button.card:hover, a.card:hover { box-shadow: var(--shadow-card-hover); }
 
 /* ————— stat strip — numbers as typography, not boxes ————— */
 
-.stat-strip { display: grid; grid-template-columns: repeat(4, 1fr); }
+.stat-strip { display: grid; grid-template-columns: repeat(5, 1fr); }
 .stat-strip > * {
   padding: 6px 20px 8px;
   border-left: 1px solid var(--border-faint);
@@ -966,7 +966,7 @@ button.open-block:hover { background: var(--bg-hover); transition: none; }
 
 /* ───── currency & category identity: colour lives only in the swatch ─────
    Rendered by UI.ccy(). Four hues, fixed app-wide: AED cove · USD twilight ·
-   GBP dune · USDT moss. The swatch is 9px and squarish (2.5px radius); the
+   EUR dune · BHD neutral · USDT moss. The swatch is 9px and squarish (2.5px radius); the
    status dot is 6px and round. Different shape, different size, different
    meaning, and they must never be confusable. Identity hues never appear on
    a dot; status hues never appear on a swatch. */
@@ -977,7 +977,8 @@ button.open-block:hover { background: var(--bg-hover); transition: none; }
 }
 .cat-aed  i { background: var(--cat-7); }   /* cove  · 188° teal      */
 .cat-usd  i { background: var(--cat-4); }   /* twilight · 286° violet */
-.cat-gbp  i { background: var(--cat-1); }   /* dune  · 50° orange     */
+.cat-eur  i { background: var(--cat-1); }   /* dune  · 50° orange     */
+.cat-bhd  i { background: var(--text-faint); } /* neutral: the 4-hue budget holds */
 .cat-usdt i { background: var(--cat-8); }   /* moss  · 127°           */
 
 /* network identity: legal only where no currency column exists (the wallets
@@ -1001,7 +1002,8 @@ button.open-block:hover { background: var(--bg-hover); transition: none; }
 }
 .cat-chip.cat-aed  { background: color-mix(in srgb, var(--cat-7) 8%, transparent); }
 .cat-chip.cat-usd  { background: color-mix(in srgb, var(--cat-4) 8%, transparent); }
-.cat-chip.cat-gbp  { background: color-mix(in srgb, var(--cat-1) 8%, transparent); }
+.cat-chip.cat-eur  { background: color-mix(in srgb, var(--cat-1) 8%, transparent); }
+.cat-chip.cat-bhd  { background: color-mix(in srgb, var(--text-faint) 8%, transparent); }
 .cat-chip.cat-usdt { background: color-mix(in srgb, var(--cat-8) 8%, transparent); }
 
 /* ───── held and failed figures ─────
@@ -1137,7 +1139,7 @@ button.open-block:hover { background: var(--bg-hover); transition: none; }
    order, shared with the Trade pair picker). */
 .rates-row {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   width: 100%;
   margin-top: 20px;
 }
@@ -1228,8 +1230,10 @@ button.rr-cell:hover .rr-pair { color: var(--text-default); }
   /* stat strips stack two-up (900px already set this; keep the row gap) */
   .stat-strip { row-gap: 20px; }
 
-  /* the rates row tightens */
-  .rates-row > * { padding-left: 12px; }
+  /* the rates row goes two-up */
+  .rates-row { grid-template-columns: repeat(2, 1fr); row-gap: 12px; }
+  .rates-row > * { padding-left: 14px; }
+  .rates-row > :nth-child(odd) { border-left: none; padding-left: 0; }
   .rates-row .rr-rate { font-size: 17px; }
 
   /* trade: the one centered object. Segments span, the amount is the

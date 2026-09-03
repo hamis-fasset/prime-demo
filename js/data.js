@@ -18,10 +18,10 @@
 
   // ————— constants (illustrative figures, from the contract) —————
 
-  var REF = { "USDT/AED": 3.6728, "USDT/USD": 1.0002, "USDT/GBP": 0.7880 };
-  // USDT/GBP is reference-only (the dashboard rates row); tradable pairs stay
-  // USDT/AED and USDT/USD.
-  var FX_AED = { AED: 1, USD: 3.6725, GBP: 4.6612, USDT: 3.6728 }; // reference, for the hero total only
+  // The supported set (Hamis, 2026-09-03): AED, USD, EUR and BHD against
+  // USDT, both directions. GBP is out.
+  var REF = { "USDT/AED": 3.6728, "USDT/USD": 1.0002, "USDT/EUR": 0.8590, "USDT/BHD": 0.3761 };
+  var FX_AED = { AED: 1, USD: 3.6725, EUR: 4.2740, BHD: 9.7670, USDT: 3.6728 }; // reference, for AED-equivalent figures
   var SPREAD = 0.0025;        // Tier 2 = reference + 25 bps
   var LIMIT_AED = 7500000;    // per-trade self-serve limit
   var LOCK_SECS = 20;         // client quote lock (15–30 s band)
@@ -30,7 +30,8 @@
   var VIBANS = {
     AED: { iban: "AE82 0860 0000 3450 1002 87", copy: "AE8208600000345010028700" },
     USD: { iban: "AE19 0860 0000 3450 1003 12", copy: "AE1908600000345010031200" },
-    GBP: { iban: "AE31 0860 0000 3450 1004 55", copy: "AE3108600000345010045500" }
+    EUR: { iban: "AE31 0860 0000 3450 1004 55", copy: "AE3108600000345010045500" },
+    BHD: { iban: "AE64 0860 0000 3450 1005 89", copy: "AE6408600000345010058900" }
   };
   // Must render verbatim — the sending bank's confirmation-of-payee check
   // fails on any styled or edited version of this string.
@@ -80,7 +81,7 @@
     user: { name: "Reem Al Suwaidi", email: "reem.alsuwaidi@delos.ae", entity: "Delos Financial Limited" },
     role: "admin",                    // admin | trader | viewer (demo preview)
     persona: "client",                // client | ib — which portal the demo shows
-    pairOrder: ["USDT/AED", "USDT/USD", "USDT/GBP"],  // client-pinned order (drag to reorder)
+    pairOrder: ["USDT/AED", "USDT/USD", "USDT/EUR", "USDT/BHD"],  // client-pinned order (drag to reorder)
     windowCopy: "30min",              // "30min" | "hours" (OQ9 copy toggle)
     stale: false,                     // balance feed interrupted
     firstRun: false,                  // zero-balance first-run state
@@ -89,10 +90,11 @@
     rails: [                          // all live by default; demo bar can flip to "today"
       { cur: "AED", state: "live" },
       { cur: "USD", state: "live" },
-      { cur: "GBP", state: "live" }
+      { cur: "EUR", state: "live" },
+      { cur: "BHD", state: "live" }
     ],
 
-    bal: { AED: 12485320.50, USD: 1204880.00, GBP: 482650.00, USDT: 3145220.10 },
+    bal: { AED: 12485320.50, USD: 1204880.00, EUR: 460000.00, BHD: 85000.000, USDT: 3145220.10 },
 
     journey: { review: "not_started", entity: "institution", submittedIso: null, comments: [], rejectedReason: null, railsIssuing: false },
 
@@ -138,7 +140,7 @@
 
     banks: [
       { id: "B-1", bank: "Emirates NBD", iban: "AE45 0260 0010 1523 4404 471", title: "Delos Financial Limited", cur: "AED", state: "verified", added: agoIso(60 * 24 * 80), reason: null, byDesk: false },
-      { id: "B-4", bank: "Barclays", iban: "GB29 BARC 2035 3355 7799 11", title: "Delos Financial Limited", cur: "GBP", state: "verified", added: agoIso(60 * 24 * 31), reason: null, byDesk: false },
+      { id: "B-4", bank: "HSBC", iban: "AE77 0200 0000 8765 4321 001", title: "Delos Financial Limited", cur: "EUR", state: "verified", added: agoIso(60 * 24 * 31), reason: null, byDesk: false },
       { id: "B-2", bank: "First Abu Dhabi Bank", iban: "AE07 0331 2345 6789 0129 902", title: "Delos Financial Limited", cur: "AED", state: "pending", added: agoIso(60 * 3), reason: null, byDesk: false },
       { id: "B-3", bank: "Mashreq", iban: "AE21 0330 0000 1098 7654 321", title: "Delos Holdings FZE", cur: "AED", state: "rejected", added: agoIso(60 * 24 * 20), reason: "Account name doesn't match your entity. Send a bank letter or IBAN certificate in the entity's legal name.", byDesk: false }
     ],
@@ -251,7 +253,7 @@
         .reduce(function (a, d) { return a + d.amount; }, 0);
     },
     totalAedApprox: function () {
-      return ["AED", "USD", "GBP", "USDT"].reduce(function (a, c) { return a + (S.bal[c] || 0) * FX_AED[c]; }, 0);
+      return ["AED", "USD", "EUR", "BHD", "USDT"].reduce(function (a, c) { return a + (S.bal[c] || 0) * FX_AED[c]; }, 0);
     },
     unreadCount: function () { return S.notifs.filter(function (n) { return !n.read; }).length; },
     windowCopy: function () {
@@ -309,7 +311,7 @@
     // AED-equivalent of a trade's fiat leg, at reference — for volume and
     // accrual figures only, never shown as the trade's own amount
     ibNotionalAED: function (t) {
-      return Data.fiatOf(t.pair) === "AED" ? t.fiatAmt : t.fiatAmt * 3.6725;
+      return t.fiatAmt * Data.fxAED(Data.fiatOf(t.pair));
     },
     // every linked client's trades, normalized, newest first. Delos (C-1)
     // maps live from S.trades; the rest come from the IB seed. Fresh objects
@@ -365,7 +367,8 @@
 
     fiatOf: function (pair) { return pair.split("/")[1]; },
     refRate: function (pair) { return REF[pair]; },
-    notionalAED: function (pair, amt) { return pair === "USDT/AED" ? amt * REF["USDT/AED"] : amt * REF["USDT/USD"] * FX_AED.USD; },
+    notionalAED: function (pair, amt) { return amt * REF["USDT/AED"]; }, // amt is USDT; AED value is pair-independent
+    fxAED: function (cur) { return FX_AED[cur] || 1; },
     // returns a quote object the screen holds while the lock runs
     makeQuote: function (pair, side, amtNum) {
       var ref = REF[pair] + (Math.random() - 0.5) * 0.0012;
@@ -620,8 +623,7 @@
       if (valid.length) { S.pairOrder = valid; emit("pins"); }
     },
     setRails: function (allLive) {
-      S.rails[1].state = allLive ? "live" : "coming";
-      S.rails[2].state = allLive ? "live" : "coming";
+      for (var i = 1; i < S.rails.length; i++) S.rails[i].state = allLive ? "live" : "coming";
       emit("prefs");
     },
     setWindowCopy: function (v) { S.windowCopy = v; emit("prefs"); },

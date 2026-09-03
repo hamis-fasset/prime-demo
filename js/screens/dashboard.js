@@ -6,7 +6,7 @@
    2026-09-02: the 30-day balance line is gone (Hamis: pointless for
    this persona; a treasurer's own books are the source of truth for
    their trajectory). In its place, per pm-designer: a compact
-   indicative reference-rates row (USDT/AED · USDT/USD · USDT/GBP),
+   indicative reference-rates row (USDT vs AED · USD · EUR · BHD),
    which answers the one market question this persona opens a trading
    portal for and makes the hero's "at market reference" auditable.
    The scrub, the count-up and the draw-in died with the chart; the
@@ -29,7 +29,8 @@
    · local state (a webhook patch) never calls App.rerender, so the
      page entrance is never replayed
 
-   Colour budget on this screen: 4 identity hues (AED/USD/GBP/USDT) ·
+   Colour budget on this screen: 4 identity hues (AED/USD/EUR/USDT; BHD
+   carries the neutral swatch, keeping the budget at four) ·
    0 saturated fills · 1 hue colouring text (--st-error, held only).
    Status dots stay --st-*; an identity hue never lands on a round dot.
 
@@ -50,8 +51,8 @@
   var curFlight = [];       // in-flight rows by index, for the click targets
   var sig = {};             // last painted html per region — kills double paints
 
-  var CURS = ["AED", "USD", "GBP", "USDT"];
-  var PAIRS = ["USDT/AED", "USDT/USD", "USDT/GBP"];
+  var CURS = ["AED", "USD", "EUR", "BHD", "USDT"];
+  var PAIRS = ["USDT/AED", "USDT/USD", "USDT/EUR", "USDT/BHD"];
 
   // ————— foundation helpers, with a graceful floor —————
 

@@ -410,7 +410,7 @@
     bar.querySelector("#dbRails").addEventListener("change", function (e) {
       var live = e.target.value === "live";
       Data.setRails(live);
-      UI.toast(live ? "Rails: end state. USD and GBP vIBANs are live." : "Rails: today. AED only; USD and GBP show the not-yet-live treatment.");
+      UI.toast(live ? "Rails: end state. USD, EUR and BHD vIBANs are live." : "Rails: today. AED only; the other rails show the not-yet-live treatment.");
     });
     bar.querySelector("#dbWindow").addEventListener("change", function (e) {
       Data.setWindowCopy(e.target.value);

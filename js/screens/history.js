@@ -752,7 +752,7 @@
         sel("hxType", "Type", [["all", "All types"], ["trade", "Trades"], ["dep", "Deposits"], ["wd", "Withdrawals"], ["wl", "Whitelist events"]], F.type) +
         // a <select> cannot carry the currency swatch, so this filter stays
         // typographic; the swatch does its work in the amount column
-        sel("hxCur", "Currency", [["all", "All currencies"], ["AED", "AED"], ["USD", "USD"], ["GBP", "GBP"], ["USDT", "USDT"]], F.cur) +
+        sel("hxCur", "Currency", [["all", "All currencies"], ["AED", "AED"], ["USD", "USD"], ["EUR", "EUR"], ["BHD", "BHD"], ["USDT", "USDT"]], F.cur) +
         sel("hxStatus", "Status", [["all", "Any status"], ["inflight", "In flight"], ["done", "Completed"], ["held", "Needs attention"]], F.status) +
       "</div>" +
       '<div id="hxTable"></div>' +

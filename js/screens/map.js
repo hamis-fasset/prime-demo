@@ -8,7 +8,7 @@
      status vocabulary: shipped = positive, specced = info,
      build = neutral. No new hues, no capsule chips.
    · the full pillar-grouped table, every MAPROWS row carried over
-     (address screening included; USD/GBP vIBANs assumed live for v2;
+     (address screening included; USD/EUR/BHD vIBANs assumed live for v2;
      no withdrawal-delay row)
    Internal furniture, so it keeps a denser treatment: 12px cells,
    44px rows. It still speaks the system: sentence case, warm
@@ -67,7 +67,7 @@
 
     { pillar: "Pillar 3 · Move money without asking" },
     { a: "See my vIBAN (AED)", o: "On-ramp lifecycle and attribution (PRM-18)", h: "Deposit writes (exist today)", b: SHIPPED },
-    { a: "See USD and GBP vIBANs", o: "Multicurrency vIBAN issuance", h: "Nothing yet", b: BUILD + sub("assumed live for v2: Optimus issues virtual accounts") },
+    { a: "See USD, EUR and BHD vIBANs", o: "Multicurrency vIBAN issuance", h: "Nothing yet", b: BUILD + sub("assumed live for v2: Optimus issues virtual accounts") },
     { a: "Watch a deposit arrive", o: "On-ramp lifecycle; unknown credits go to the unattributed queue", h: "Deposit event via feed", b: "Lifecycle: " + SHIPPED + " · CMA-2 watch and queue: " + SPECCED + " " + BUILD },
     { a: "Identify a held credit (confirm the sending account)", o: "Unattributed credits queue: the client's identification feeds candidate matching", h: "Nothing", b: SPECCED + " " + BUILD + sub("per OIA J8") },
     { a: "Deposit credited to balance", o: "Ledger posting discipline at boundary events", h: "Nothing", b: SPECCED + sub("posting today is a disconnected manual step") },

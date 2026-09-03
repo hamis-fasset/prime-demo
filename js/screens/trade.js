@@ -45,7 +45,8 @@
   var FIATS = [
     { cur: "AED", pair: "USDT/AED" },
     { cur: "USD", pair: "USDT/USD" },
-    { cur: "GBP", pair: "USDT/GBP", never: true }
+    { cur: "EUR", pair: "USDT/EUR" },
+    { cur: "BHD", pair: "USDT/BHD" }
   ];
 
   // ————— foundation primitives (graceful floor, never re-implemented) —————

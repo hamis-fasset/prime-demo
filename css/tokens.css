@@ -109,7 +109,7 @@
   /* curated category palette — assigned by name, never random.
      IDENTITY USES FOUR HUES ONLY: --cat-1 (dune 50°), --cat-4 (twilight 286°),
      --cat-7 (cove 188°), --cat-8 (moss 127°). AED=cat-7 · USD=cat-4 ·
-     GBP=cat-1 · USDT=cat-8, fixed app-wide (see ARCHITECTURE.md §5).
+     EUR=cat-1 · BHD=neutral · USDT=cat-8, fixed app-wide (see ARCHITECTURE.md §5).
      --cat-2 / --cat-3 / --cat-6 are byte-identical to --accent / --st-info /
      --warning and --cat-5 sits next to --negative: they are documented aliases
      of the STATUS hues and are off-limits for identity, because an operator
