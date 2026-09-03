@@ -74,13 +74,11 @@
   // ————— the hero's second line —————
 
   function deltaHtml() {
-    var fr = Data.state.firstRun;
-    var arriving = fr ? 0 : CURS.reduce(function (a, c) { return a + Data.inflightIn(c); }, 0);
-    var freshness = Data.state.stale
+    // freshness only. Money in motion lives in ONE place: In flight now
+    // (declutter cut, 2026-09-03).
+    return Data.state.stale
       ? UI.statusDot("warning", "feed interrupted · last-known values from " + UI.fmtTs(new Date(Date.now() - 9 * 60000).toISOString()))
       : UI.statusDot("positive", "live · updated " + UI.fmtTime());
-    // .up is accent TEXT, not a fill — this screen has no saturated fill.
-    return (arriving ? '<span class="up">' + UI.money("AED", arriving, { sign: "+" }) + " arriving</span> · " : "") + freshness;
   }
 
   // ————— reference rates: the row that replaced the line —————
@@ -107,8 +105,8 @@
 
   function ratesCaption() {
     return Data.state.stale
-      ? "Market reference · indicative · last-known, updated " + UI.esc(UI.fmtTime(new Date(Date.now() - 9 * 60000).toISOString()))
-      : "Market reference · indicative · firm prices in Trade · drag to reorder";
+      ? "Market reference · last-known, updated " + UI.esc(UI.fmtTime(new Date(Date.now() - 9 * 60000).toISOString()))
+      : "Market reference · indicative";
   }
 
   function ratesHtml() {
@@ -143,7 +141,7 @@
   // ————— per-currency cell: open typography, identity in the label —————
 
   function railStatus(cur) {
-    if (cur === "USDT") return UI.statusDot("positive", "live · Fasset custody");
+    if (cur === "USDT") return UI.statusDot("positive", "live");
     return Data.railLive(cur)
       ? UI.statusDot("positive", "live")
       : UI.statusDot("neutral", "not yet live");
@@ -153,30 +151,20 @@
     var live = Data.railLive(cur);
     var fr = Data.state.firstRun;
     var bal = fr ? 0 : (Data.state.bal[cur] || 0);
-    var fin = fr ? 0 : (Data.inflightIn(cur) + Data.settlingIn(cur));
-    var fout = fr ? 0 : Data.inflightOut(cur);
     var held = fr ? 0 : Data.heldAmt(cur);
 
-    // the figure is set, not printed: per-digit assembly on all four balances
+    // the figure is set, not printed: per-digit assembly on every balance.
+    // The tile is the balance and nothing else (declutter cut, 2026-09-03);
+    // in-flight money has ONE home, the In flight now strip. Held is the one
+    // exception: an error state is never clutter.
     var value = live
       ? '<div class="tile-value">' + UI.moneyHero(cur, bal) + "</div>"
       : '<div class="tile-value faint">—</div>';
 
-    var subs = [];
-    if (live) {
-      if (fin) subs.push("+" + UI.fmtNum(fin) + " in flight in");
-      if (fout) subs.push("−" + UI.fmtNum(fout) + " in flight out");
-      // held is the one kind the law lets colour text
-      if (held) subs.push('<span class="error status-error">' + UI.fmtNum(held) + " held</span>");
-      if (!subs.length) subs.push("all settled");
-    } else {
-      subs.push("available when the rail opens");
-    }
-
     return '<button class="stat-strip-cell" data-go-move type="button">' +
       '<div class="tile-label">' + ccy(cur) + '<span style="margin-left:auto"></span>' + railStatus(cur) + "</div>" +
       value +
-      '<div class="tile-sub">' + subs.join(" · ") + "</div>" +
+      (live && held ? '<div class="tile-sub"><span class="error status-error">' + UI.fmtNum(held) + " held</span></div>" : "") +
       "</button>";
   }
 
@@ -364,7 +352,7 @@
     // the account is funded, which is exactly when a new client wants it.
     h += '<div class="section">' +
       '<div class="bal-hero"><div>' +
-        '<div class="bal-label">Total balance · all currencies</div>' +
+        '<div class="bal-label">Total balance</div>' +
         '<div class="bal-value" id="dbHeroVal">' + UI.moneyHero("AED", total) + "</div>" +
         '<div class="bal-delta" id="dbHeroDelta">' + deltaHtml() + "</div>" +
       "</div></div>" +
@@ -450,7 +438,6 @@
 
   App.registerScreen("dashboard", {
     title: "Dashboard",
-    subtitle: "What you hold, what’s moving, and what just happened.",
     actions: function () {
       if (Data.state.role === "viewer") return "";
       return '<button class="btn btn-primary" data-go-trade type="button">Get a quote</button>';
