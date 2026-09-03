@@ -1,0 +1,200 @@
+/* ————————————————————————————————————————————————
+   screens-move.css — wave-2 styles for Move money (move.js)
+   and Whitelist (whitelist.js). Owner writes here ONLY.
+   Only these two screens' classes live here (mv- / wl-
+   prefixes); everything else comes from app.css/tokens.css.
+   A few mv- utilities (mv-narrow, mv-sum, mv-idcell, mv-demo)
+   and the wl-up uploader are shared across the pair on purpose,
+   so both screens' drawers, rows and demo rows read identically.
+
+   Audit pass (2026-09-01), items #1, #7, colour plan, M6, M7:
+   · the dark-theme inversion on .mv-rail-off is pinned, both themes
+   · Move is de-boxed: only the two rail cards, the not-live card and
+     the withdrawal review (an irreversible instrument, so a wash
+     rather than a card) keep a bounded surface. Forms de-box.
+   · currency identity rides the shared .cat component; network
+     identity extends it for Whitelist, the one screen in this pair
+     where no money appears
+   · the app's ONE bespoke texture is the tiled Fasset star on the
+     USDT custody card. If it ever appears on a second surface,
+     both must go.
+   ———————————————————————————————————————————————— */
+
+/* — mode tabs — */
+.mv-tabs, .wl-tabs { margin-bottom: 32px; }
+
+/* — region shells (M7) —
+   Each region is a direct child of .screen so the page entrance
+   choreography still owns it, and its contents are repainted in
+   place instead of rebuilding the screen. A region with nothing to
+   say in the current mode collapses. */
+.mv-sec:empty { margin-bottom: 0; }
+
+/* — deposit detail cards (a bank account is an object, so a card) — */
+.mv-depgrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; align-items: start; }
+@media (max-width: 900px) { .mv-depgrid { grid-template-columns: 1fr; } }
+.mv-dep-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.mv-dep-head h3 { font-size: var(--text-14); }
+/* the card's title IS the currency, so the identity chip is set at title
+   size rather than the component's default caption size */
+.mv-dep-head h3 .cat { font-size: var(--text-14); font-weight: var(--w-medium); color: var(--text-strong); }
+.mv-dep-head .status { margin-left: auto; }
+.mv-depcard > .hint { margin-top: 10px; }
+.mv-netseg { margin: 2px 0 10px; }
+
+/* — the one bespoke texture (M6) —
+   Fasset's own mark is a field of four-pointed stars, so the surface that
+   represents Fasset holding your asset gets that field tiled into its
+   corner. A mask, not a background image, so the glyph takes a token
+   colour and therefore holds in both themes. The law allows exactly one
+   textured surface in the app: this is it. */
+.mv-depcard.mv-usdt { position: relative; overflow: hidden; }
+.mv-depcard.mv-usdt::after {
+  content: "";
+  position: absolute; top: -10px; right: -12px;
+  width: 150px; height: 120px;
+  pointer-events: none;
+  background: var(--text-strong);
+  opacity: 0.05;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-0.2 -0.2 8.95 8.95'%3E%3Cpath d='M0.117638 4.45489C-0.0392129 4.38767 -0.0392126 4.1653 0.117639 4.09808L0.45373 3.95404C2.02653 3.27998 3.27977 2.02674 3.95383 0.453942L4.09787 0.117852C4.16509 -0.0389993 4.38745 -0.038999 4.45467 0.117852L4.6293 0.525305C5.28372 2.0523 6.50046 3.26903 8.02745 3.92346L8.4349 4.09808C8.59175 4.1653 8.59175 4.38767 8.4349 4.45489L8.02745 4.62951C6.50046 5.28394 5.28372 6.50067 4.6293 8.02766L4.45467 8.43512C4.38745 8.59197 4.16509 8.59197 4.09787 8.43512L3.92324 8.02766C3.26882 6.50067 2.05208 5.28393 0.52509 4.62951L0.117638 4.45489Z'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-0.2 -0.2 8.95 8.95'%3E%3Cpath d='M0.117638 4.45489C-0.0392129 4.38767 -0.0392126 4.1653 0.117639 4.09808L0.45373 3.95404C2.02653 3.27998 3.27977 2.02674 3.95383 0.453942L4.09787 0.117852C4.16509 -0.0389993 4.38745 -0.038999 4.45467 0.117852L4.6293 0.525305C5.28372 2.0523 6.50046 3.26903 8.02745 3.92346L8.4349 4.09808C8.59175 4.1653 8.59175 4.38767 8.4349 4.45489L8.02745 4.62951C6.50046 5.28394 5.28372 6.50067 4.6293 8.02766L4.45467 8.43512C4.38745 8.59197 4.16509 8.59197 4.09787 8.43512L3.92324 8.02766C3.26882 6.50067 2.05208 5.28393 0.52509 4.62951L0.117638 4.45489Z'/%3E%3C/svg%3E");
+  -webkit-mask-size: 22px 22px;
+  mask-size: 22px 22px;
+  -webkit-mask-repeat: repeat;
+  mask-repeat: repeat;
+}
+
+/* — dark-rail treatment: a rail that is not live is visibly "off" —
+     no account details shown, ever, until the rail exists at the bank.
+
+     PINNED, not tokenized: --ink and --on-ink invert between themes, so
+     var(--ink) turned this "nothing to show you" card into the brightest
+     object on the screen in dark and made the treatment mean the opposite
+     of what it means in light. The two literals below are the light-theme
+     --ink / --on-ink values, held in both themes — the same fix .ob-qr
+     uses to pin white for a scannable code. Do not re-tokenize them. — */
+.mv-rail-off {
+  --rail-off-ink: oklch(0.2331 0.0231 152);   /* light-theme --ink   */
+  --rail-off-on: oklch(0.9861 0.0025 120);    /* light-theme --on-ink */
+  background: var(--rail-off-ink);
+  box-shadow: none;
+}
+.mv-rail-off h3, .mv-rail-off h3 .cat { color: var(--rail-off-on); }
+/* the currency keeps its identity hue in the swatch; the chip's tint and
+   text are re-grounded so both stay legible on the pinned dark surface */
+.mv-rail-off h3 .cat-chip {
+  color: var(--rail-off-on);
+  background: color-mix(in srgb, var(--rail-off-on) 10%, transparent);
+}
+.mv-rail-off .status { color: color-mix(in srgb, var(--rail-off-on) 72%, transparent); }
+.mv-rail-off .status .dot { background: color-mix(in srgb, var(--rail-off-on) 45%, transparent); }
+.mv-rail-off .mv-off-body {
+  font-size: var(--text-13); line-height: 1.55;
+  color: color-mix(in srgb, var(--rail-off-on) 78%, transparent);
+}
+.mv-rail-off .link { color: color-mix(in srgb, var(--rail-off-on) 88%, transparent); }
+.mv-rail-off .link:hover { color: var(--rail-off-on); }
+
+/* — de-boxed forms: a form is not an object, so it gets no surface.
+     Width is what bounds it. — */
+.mv-form { max-width: 620px; }
+.mv-form .field-row .field.mv-amt { flex: 0 0 190px; }
+
+/* the withdrawal review is the last thing an operator sees before seven
+   figures leave, and the card rule's amendment covers it: an irreversible
+   instrument earns a bounded surface. A --surface-2 wash, not a card. */
+.mv-review {
+  max-width: 620px;
+  background: var(--surface-2);
+  border-radius: var(--r-card);
+  padding: 20px;
+}
+
+/* permission-denied: one quiet paragraph, no box */
+.mv-denied { max-width: 620px; }
+.mv-denied p { font-size: var(--text-13); line-height: 1.55; color: var(--text-subtle); }
+
+/* — expandable lifecycle rows: investigate expands in place — */
+.mv-table .mvrow { padding-top: 10px; padding-bottom: 10px; }
+.mv-caret { display: inline-flex; flex: none; color: var(--text-faint); transition: transform var(--dur-2) var(--ease); }
+.mv-caret.open { transform: rotate(90deg); }
+.mv-row-detail { padding: 6px 12px 22px 34px; animation: rise-in 300ms var(--ease-snappy) both; }
+/* re-inserted by a region repaint, not by the operator: the region is already
+   animating, so the detail holds still */
+.mv-row-detail.mv-nofx { animation: none; }
+.mv-detail-title { font-size: var(--text-12); color: var(--text-faint); margin-bottom: 10px; }
+/* a held figure uses the foundation's shared .amount.error, not a fork */
+.mv-heldrow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+
+/* the identity cell of a row in either screen: a stacked block that can
+   shrink, and the anchor UI.settleFlash marks when something completes */
+.mv-idcell { min-width: 0; }
+.mv-idcell .name { display: block; }
+
+/* — withdraw layout: form beside open-typography availability — */
+.mv-cols { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 48px; align-items: start; }
+@media (max-width: 900px) { .mv-cols { grid-template-columns: 1fr; gap: 32px; } }
+.field-row .field.mv-narrow { flex: 0 0 138px; }
+.mv-avail-sub { font-size: var(--text-12); color: var(--text-subtle); text-align: right; padding-bottom: 7px; font-variant-numeric: tabular-nums; }
+/* the most consequential line in this column, so it reads at body size */
+.mv-avail-held { font-size: var(--text-13); color: var(--st-error); text-align: right; padding-bottom: 7px; line-height: 1.45; font-variant-numeric: tabular-nums; }
+.mv-sum { margin-bottom: 16px; }
+
+/* — quiet demo affordances (prototype furniture, .db-btn restraint).
+     The row itself is app.css's .demo-strip, which is now the one
+     authoritative declaration; this only stacks the captions around it. — */
+.mv-demo { margin-top: 20px; display: flex; flex-direction: column; gap: 8px; }
+.mv-demo .db-inp { width: 118px; font-size: 11px; padding: 3px 8px; border: 1px solid var(--border); border-radius: var(--r-control); background: transparent; color: var(--text-subtle); font-variant-numeric: tabular-nums; }
+.mv-demo .db-inp:focus { border-color: var(--text-strong); outline: none; }
+
+/* — skeleton row for the deposit cards — */
+.mv-skel-row { display: flex; align-items: flex-start; gap: 12px; }
+
+/* — whitelist registry rows — */
+.wl-table .wlrow { padding-top: 10px; padding-bottom: 10px; }
+.wl-addr { display: block; font-family: var(--font-mono); font-size: var(--text-12); color: var(--text-subtle); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* reason sentences are the point of this screen: body size, not caption */
+.wl-sub { display: block; font-size: var(--text-13); color: var(--text-subtle); margin-top: 3px; line-height: 1.45; white-space: normal; }
+.wl-sub.err { color: var(--st-error); }
+.wl-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; flex-wrap: wrap; text-align: right; }
+.wl-rm { color: var(--negative); }
+.wl-rm:hover { color: var(--negative); opacity: 0.8; }
+.wl-test { display: flex; align-items: center; gap: 8px; }
+.wl-test .input { width: 128px; padding: 5px 9px; font-size: var(--text-12); font-variant-numeric: tabular-nums; }
+
+/* — network identity —
+   The hues live with the rest of the .cat component in app.css
+   (.cat-tron / .cat-ethereum / .cat-bitcoin = dune / twilight / moss).
+   All this screen adds is the neutral text beside the swatch: network is
+   the only categorical dimension in play here, because no money appears
+   on this screen (colour plan, rule 1). */
+.wl-net { font-size: var(--text-12); color: var(--text-subtle); }
+
+/* — add-wallet drawer: travel-rule block — */
+.wl-tr { margin-top: 6px; padding-top: 16px; border-top: 1px solid var(--border-faint); }
+.wl-tr-title { font-size: var(--text-12); font-weight: var(--w-medium); color: var(--text-subtle); margin-bottom: 12px; }
+.wl-ack { display: flex; align-items: flex-start; gap: 9px; font-size: var(--text-13); color: var(--text-default); line-height: 1.5; margin: 4px 0 12px; cursor: pointer; }
+.wl-ack input { accent-color: var(--ink); margin-top: 2px; }
+
+/* — simulated document upload: a filling bar, never a spinner.
+     Shared by both screens in this pair (bank document, held-credit proof).
+     Known duplication: uploaderHtml/wireUploader exist verbatim in both
+     move.js and whitelist.js. The audit's fix is one component in
+     ui.js + app.css, which this owner cannot write; the CSS is at least
+     single-sourced here. — */
+.wl-up { display: flex; align-items: center; gap: 12px; background: var(--surface-2); border-radius: var(--r-card); padding: 10px 12px; min-height: 40px; }
+.wl-up-meta { font-size: var(--text-12); color: var(--text-subtle); flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.wl-up.done .wl-up-meta { color: var(--text-default); }
+.wl-up-bar { flex: 0 0 90px; height: 3px; border-radius: 2px; background: color-mix(in srgb, var(--text-subtle) 18%, transparent); overflow: hidden; }
+.wl-up-bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width 700ms var(--ease); }
+.wl-up-bar.run i { width: 100%; }
+
+/* — reduced motion: movement out, opacity kept. The lifecycle detail
+     still arrives, it just doesn't travel. The !important duration is the
+     same pattern app.css uses for .dg / .settle / .repaint, because
+     tokens.css still flattens every animation to 0.01ms globally. — */
+@keyframes mv-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .mv-row-detail { animation-name: mv-fade-in !important; animation-duration: 300ms !important; }
+  .mv-caret { transition-property: none; }
+}

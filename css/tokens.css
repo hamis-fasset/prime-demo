@@ -1,0 +1,370 @@
+/* ————————————————————————————————————————————————
+   Fasset Prime — design tokens
+   Adapted from the fasset-biz design system bundle.
+   LIGHT (warm paper) is the bare :root default and the
+   primary theme; dark exists via prefers-color-scheme
+   and an explicit [data-theme="dark"] override.
+   Bar: NATURAL-DESIGN-AUDIT.md — typographic scarcity,
+   warm material color, no lines, ease-out physics.
+   ———————————————————————————————————————————————— */
+
+/* ————— self-hosted variable faces (no third-party font requests) —————
+   src fallback: local assets first; if the woff2 files haven't been
+   copied into prime-web/assets/fonts yet, load the identical files
+   from the design-system bundle via a relative path. Never a network
+   request either way. */
+
+@font-face {
+  font-family: "General Sans";
+  src: url("../assets/fonts/GeneralSans-Variable.woff2") format("woff2"),
+       url("../../../../context/fasset-biz-design-system/assets/fonts/GeneralSans-Variable.woff2") format("woff2");
+  font-weight: 200 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Geist Mono";
+  src: url("../assets/fonts/GeistMono-Variable.woff2") format("woff2"),
+       url("../../../../context/fasset-biz-design-system/assets/fonts/GeistMono-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+/* metric-compatible fallback — no layout shift while the woff2 arrives */
+@font-face {
+  font-family: "General Sans Fallback";
+  src: local("Arial");
+  size-adjust: 101.5%;
+  ascent-override: 98%;
+  descent-override: 25%;
+  line-gap-override: 0%;
+}
+
+/* ————— light — the primary theme, tuned first. Warm paper,
+   green-cast neutrals, ink chrome. Nothing pure white-on-white;
+   every gray carries the brand's temperature. ————— */
+:root {
+  /* surfaces */
+  --bg: oklch(0.9946 0.0018 120);            /* warm near-white paper */
+  --bg-sunken: oklch(0.9672 0.0062 122);     /* linen — the app wallpaper */
+  --surface: oklch(0.9946 0.0018 120);
+  --surface-2: oklch(0.9748 0.0048 120);
+  --input: oklch(0.9946 0.0018 120);
+  --bg-selected: oklch(0.9531 0.0065 125);
+  --bg-hover: oklch(0.9707 0.0048 120);
+  --overlay: oklch(0.9968 0.0012 120);
+
+  /* lines — used sparingly; whitespace does the separating */
+  --border: oklch(0.9269 0.006 120);
+  --border-faint: oklch(0.9524 0.0048 120);
+  --border-strong: oklch(0.8792 0.0085 120);
+
+  /* text */
+  --text-subtle: oklch(0.5261 0.0088 130);
+  --text-faint: oklch(0.6768 0.0072 125);
+  --text-default: oklch(0.2811 0.0093 140);
+  --text-strong: oklch(0.2019 0.0108 145);   /* warm ink, never #000 */
+
+  /* ink — the chrome color. Buttons are ink, not brand. */
+  --ink: oklch(0.2331 0.0231 152);           /* green-cast black — the button color */
+  --ink-down: oklch(0.3054 0.0262 152);
+  --on-ink: oklch(0.9861 0.0025 120);
+
+  /* the one accent + status hues (dots and near-transparent tints only) */
+  --accent: oklch(0.6061 0.1275 162.0);
+  --accent-down: oklch(0.5324 0.1119 161.9);
+  --accent-tint: oklch(0.6061 0.1275 162.0 / 0.09);
+  --negative: oklch(0.6113 0.1641 25.4);
+  --negative-tint: oklch(0.6113 0.1641 25.4 / 0.08);
+  --warning: oklch(0.6293 0.1129 68.7);
+  --warning-tint: oklch(0.6293 0.1129 68.7 / 0.09);
+  --on-accent: oklch(1 0 0);
+
+  /* elevation — ink-tinted, near-invisible: 1px contact + soft ambient.
+     Never a generic gray blob. */
+  --hl: none;
+  --elev-1: 0 1px 1px rgba(20, 26, 18, 0.05), 0 3px 6px -2px rgba(20, 26, 18, 0.03);
+  --elev-2: 0 0 1px rgba(20, 26, 18, 0.06), 0 4px 12px rgba(20, 26, 18, 0.07);
+  --elev-3: 0 0 1px rgba(20, 26, 18, 0.08), 0 8px 28px 4px rgba(10, 14, 8, 0.09);
+  /* the brightest surface, but on-temperature. Pure white (oklch(1 0 0)) is on
+     the banned list and reads as a cold patch against the warm paper --bg.
+     L stays just under 1: at L=1 the only in-gamut colour is white, so the
+     chroma would be gamut-mapped away and the warmth silently lost. */
+  --card-bg: oklch(0.997 0.0016 120);
+  --shadow-card: 0 0 0 1px rgba(20, 26, 18, 0.028),
+                 0 1px 1px rgba(20, 26, 18, 0.04),
+                 0 3px 6px -2px rgba(20, 26, 18, 0.02);
+  --shadow-card-hover: 0 0 0 1px rgba(20, 26, 18, 0.035),
+                       0 1px 12px 4px rgba(20, 26, 18, 0.05),
+                       0 3px 6px -2px rgba(20, 26, 18, 0.02);
+  --overlay-shadow: var(--elev-3);
+
+  /* status carriers — dot hues; text stays neutral except errors */
+  --st-neutral: oklch(0.6224 0.0154 140);
+  --st-positive: var(--accent);
+  --st-warning: oklch(0.6293 0.1129 68.7);
+  --st-error: oklch(0.6113 0.1641 25.4);
+  --st-info: oklch(0.5947 0.1473 255.4);
+
+  /* curated category palette — assigned by name, never random.
+     IDENTITY USES FOUR HUES ONLY: --cat-1 (dune 50°), --cat-4 (twilight 286°),
+     --cat-7 (cove 188°), --cat-8 (moss 127°). AED=cat-7 · USD=cat-4 ·
+     GBP=cat-1 · USDT=cat-8, fixed app-wide (see ARCHITECTURE.md §5).
+     --cat-2 / --cat-3 / --cat-6 are byte-identical to --accent / --st-info /
+     --warning and --cat-5 sits next to --negative: they are documented aliases
+     of the STATUS hues and are off-limits for identity, because an operator
+     would read them as a state. Identity is a 9px squarish swatch; status is a
+     6px round dot. Those two vocabularies must never be confusable. */
+  --cat-1: oklch(0.6594 0.1516 50.6); --cat-2: oklch(0.6061 0.1275 162.0); --cat-3: oklch(0.5947 0.1473 255.4); --cat-4: oklch(0.5708 0.1754 286.4);
+  --cat-5: oklch(0.6026 0.1654 9.0); --cat-6: oklch(0.6293 0.1129 68.7); --cat-7: oklch(0.6329 0.0985 188.0); --cat-8: oklch(0.5828 0.0997 127.1);
+
+  /* theme-conditional single values (so component rules never fork by theme) */
+  --scrim: rgba(18, 24, 14, 0.16);
+  --chevron: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='m1 1 4 4 4-4' stroke='%2371706a' stroke-width='1.3' stroke-linecap='round'/%3E%3C/svg%3E");
+  --selection: oklch(0.2019 0.0108 145 / 0.11);
+
+  /* type — General Sans is the app voice; Geist Mono for data moments
+     only (addresses, IBANs, codes — never money). */
+  --font: "General Sans", "General Sans Fallback", -apple-system, system-ui, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+  --font-num: var(--font);
+  /* the scale, complete. 12 is labels, dates and metadata only; any string
+     that is a sentence a treasurer reads is 13. The top end carries the law's
+     figures: 30 page titles, 34 the executable rate, 42 the balance hero. */
+  --text-12: 12px;
+  --text-13: 13px;
+  --text-14: 14px;
+  --text-16: 16px;
+  --text-18: 18px;
+  --text-24: 24px;
+  --text-30: 30px;
+  --text-34: 34px;
+  --text-42: 42px;
+
+  /* variable-font weights — interpolated, deliberately off the standard stops */
+  --w-body: 450;
+  --w-medium: 530;
+  --w-title: 460;
+
+  /* shape — instrument-grade: small radii, squared pills for chips */
+  --r-tag: 4px;
+  --r-control: 6px;
+  --r-card: 8px;
+  --r-overlay: 12px;
+  --r-panel: 16px;
+
+  /* motion — a real easing library. Fast start, long soft landing.
+     Everything decelerates into place; exits run faster than entrances. */
+  --ease: cubic-bezier(0.215, 0.61, 0.355, 1);          /* out-cubic — the workhorse */
+  --ease-out-soft: cubic-bezier(0.16, 1, 0.3, 1);       /* out-expo — draw-ins, hero entrances */
+  --ease-snappy: cubic-bezier(0.23, 1, 0.32, 1);        /* out-quint — pops, toggles, menus */
+  --ease-out-quint: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-out-expo: cubic-bezier(0.19, 1, 0.22, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);        /* sheets & side panels */
+  --dur-1: 120ms;
+  --dur-2: 160ms;
+  --dur-3: 200ms;
+  --dur-enter: 260ms;
+  --dur-exit: 120ms;
+
+  /* focus is ink, not brand — the quiet tell */
+  --focus-ring: oklch(0.2019 0.0108 145 / 0.35);
+
+  color-scheme: light;
+}
+
+/* ————— dark — the secondary theme. Applied two ways:
+   (a) system preference, unless light is explicitly pinned;
+   (b) explicit [data-theme="dark"]. Values identical in both. ————— */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: oklch(0.1684 0.0032 150);
+    --bg-sunken: oklch(0.1543 0.0032 150);
+    --surface: oklch(0.1913 0.0032 150);
+    --surface-2: oklch(0.209 0.0032 150);
+    --input: oklch(0.2002 0.0032 150);
+    --bg-selected: oklch(0.2478 0.0034 150);
+    --bg-hover: oklch(0.2178 0.0032 150);
+    --overlay: oklch(0.2002 0.0032 150);
+
+    --border: oklch(1 0 0 / 0.08);
+    --border-faint: oklch(1 0 0 / 0.05);
+    --border-strong: oklch(1 0 0 / 0.13);
+
+    --text-subtle: oklch(0.6401 0.005 140);
+    --text-faint: oklch(0.4962 0.005 140);
+    --text-default: oklch(0.9249 0.003 140);
+    --text-strong: oklch(0.9851 0.002 140);
+
+    --ink: oklch(0.9463 0.0057 140);
+    --ink-down: oklch(0.8807 0.008 140);
+    --on-ink: oklch(0.205 0.015 150);
+
+    --accent: oklch(0.7475 0.1458 161.2);
+    --accent-down: oklch(0.6698 0.134 161.1);
+    --accent-tint: oklch(0.7475 0.1458 161.2 / 0.11);
+    --negative: oklch(0.6829 0.1453 24.7);
+    --negative-tint: oklch(0.6829 0.1453 24.7 / 0.1);
+    --warning: oklch(0.7458 0.1097 70.0);
+    --warning-tint: oklch(0.7458 0.1097 70.0 / 0.1);
+    --on-accent: oklch(0.174 0.0194 164.2);
+
+    --hl: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    --elev-1: 0 1px 2px rgba(0, 0, 0, 0.35);
+    --elev-2: 0 4px 14px rgba(0, 0, 0, 0.30), 0 1px 3px rgba(0, 0, 0, 0.30),
+              inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+    --elev-3: 0 16px 48px rgba(0, 0, 0, 0.40), 0 4px 12px rgba(0, 0, 0, 0.30),
+              inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+    --card-bg: var(--surface-2);
+    --shadow-card: 0 0 0 1px rgba(255, 255, 255, 0.05);
+    --shadow-card-hover: 0 0 0 1px rgba(255, 255, 255, 0.08);
+    --overlay-shadow: var(--elev-3);
+
+    --st-neutral: oklch(0.649 0.0114 261.8);
+    --st-positive: var(--accent);
+    --st-warning: oklch(0.7458 0.1097 70.0);
+    --st-error: oklch(0.6829 0.1453 24.7);
+    --st-info: oklch(0.646 0.1423 253.9);
+
+    --cat-1: oklch(0.7083 0.1503 53.1); --cat-2: oklch(0.7455 0.1489 161.9); --cat-3: oklch(0.646 0.1423 253.9); --cat-4: oklch(0.6557 0.1677 288.0);
+    --cat-5: oklch(0.6566 0.1614 8.1); --cat-6: oklch(0.7458 0.1097 70.0); --cat-7: oklch(0.7164 0.1025 188.6); --cat-8: oklch(0.6484 0.103 126.0);
+
+    --scrim: rgba(0, 0, 0, 0.35);
+    --chevron: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='m1 1 4 4 4-4' stroke='%239a9a94' stroke-width='1.3' stroke-linecap='round'/%3E%3C/svg%3E");
+    --selection: oklch(0.7475 0.1458 161.2 / 0.25);
+
+    /* focus is ink in both themes, never brand. An accent-green ring is a
+       colored focus glow, which is on the banned list. Dark-theme ink at 35%,
+       the exact mirror of the light block's value. */
+    --focus-ring: oklch(0.9463 0.0057 140 / 0.35);
+
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: oklch(0.1684 0.0032 150);
+  --bg-sunken: oklch(0.1543 0.0032 150);
+  --surface: oklch(0.1913 0.0032 150);
+  --surface-2: oklch(0.209 0.0032 150);
+  --input: oklch(0.2002 0.0032 150);
+  --bg-selected: oklch(0.2478 0.0034 150);
+  --bg-hover: oklch(0.2178 0.0032 150);
+  --overlay: oklch(0.2002 0.0032 150);
+
+  --border: oklch(1 0 0 / 0.08);
+  --border-faint: oklch(1 0 0 / 0.05);
+  --border-strong: oklch(1 0 0 / 0.13);
+
+  --text-subtle: oklch(0.6401 0.005 140);
+  --text-faint: oklch(0.4962 0.005 140);
+  --text-default: oklch(0.9249 0.003 140);
+  --text-strong: oklch(0.9851 0.002 140);
+
+  --ink: oklch(0.9463 0.0057 140);
+  --ink-down: oklch(0.8807 0.008 140);
+  --on-ink: oklch(0.205 0.015 150);
+
+  --accent: oklch(0.7475 0.1458 161.2);
+  --accent-down: oklch(0.6698 0.134 161.1);
+  --accent-tint: oklch(0.7475 0.1458 161.2 / 0.11);
+  --negative: oklch(0.6829 0.1453 24.7);
+  --negative-tint: oklch(0.6829 0.1453 24.7 / 0.1);
+  --warning: oklch(0.7458 0.1097 70.0);
+  --warning-tint: oklch(0.7458 0.1097 70.0 / 0.1);
+  --on-accent: oklch(0.174 0.0194 164.2);
+
+  --hl: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --elev-1: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --elev-2: 0 4px 14px rgba(0, 0, 0, 0.30), 0 1px 3px rgba(0, 0, 0, 0.30),
+            inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --elev-3: 0 16px 48px rgba(0, 0, 0, 0.40), 0 4px 12px rgba(0, 0, 0, 0.30),
+            inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+  --card-bg: var(--surface-2);
+  --shadow-card: 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --shadow-card-hover: 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --overlay-shadow: var(--elev-3);
+
+  --st-neutral: oklch(0.649 0.0114 261.8);
+  --st-positive: var(--accent);
+  --st-warning: oklch(0.7458 0.1097 70.0);
+  --st-error: oklch(0.6829 0.1453 24.7);
+  --st-info: oklch(0.646 0.1423 253.9);
+
+  --cat-1: oklch(0.7083 0.1503 53.1); --cat-2: oklch(0.7455 0.1489 161.9); --cat-3: oklch(0.646 0.1423 253.9); --cat-4: oklch(0.6557 0.1677 288.0);
+  --cat-5: oklch(0.6566 0.1614 8.1); --cat-6: oklch(0.7458 0.1097 70.0); --cat-7: oklch(0.7164 0.1025 188.6); --cat-8: oklch(0.6484 0.103 126.0);
+
+  --scrim: rgba(0, 0, 0, 0.35);
+  --chevron: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='m1 1 4 4 4-4' stroke='%239a9a94' stroke-width='1.3' stroke-linecap='round'/%3E%3C/svg%3E");
+  --selection: oklch(0.7475 0.1458 161.2 / 0.25);
+
+  /* focus is ink in both themes, never brand — see the note above. */
+  --focus-ring: oklch(0.9463 0.0057 140 / 0.35);
+
+  color-scheme: dark;
+}
+
+/* ————— base ————— */
+
+html, body {
+  overscroll-behavior-y: none;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text-default);
+  font-family: var(--font);
+  font-size: var(--text-13);
+  font-weight: var(--w-body);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-variant-numeric: tabular-nums;
+  font-synthesis: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* headings: tighter leading, balanced wrap, a touch of negative tracking */
+h1, h2, h3, h4 {
+  margin: 0; font-weight: var(--w-medium); color: var(--text-strong);
+  line-height: 1.15; letter-spacing: -0.011em; text-wrap: balance;
+}
+p { margin: 0; text-wrap: pretty; }
+a { color: inherit; text-decoration: none; }
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+input, select, textarea { font: inherit; color: var(--text-default); }
+@media (max-width: 640px) {
+  input, select, textarea { font-size: 16px; }
+}
+::placeholder { color: var(--text-faint); }
+strong, b { font-weight: var(--w-medium); }
+
+:focus { outline: none; }
+:focus-visible {
+  outline: 1.5px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* selection is ink at 10% — even highlighting is on-system */
+::selection { background: var(--selection); }
+
+.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; line-height: 1.2; }
+.mono { font-family: var(--font-mono); font-size: 0.95em; letter-spacing: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

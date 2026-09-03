@@ -1,0 +1,360 @@
+/* ————————————————————————————————————————————————
+   screens-manage — styles for Team (J7), Settings (J6) and the
+   internal connection map. Owner writes here ONLY; app.css and
+   tokens.css are wave-1 files and stay untouched.
+
+   Every color, radius, duration and easing comes from a token, so
+   both themes come for free. No row hairlines, no boxed numbers,
+   no capsule chips, no uppercase.
+   ———————————————————————————————————————————————— */
+
+/* ————————————————————————————————————————————————
+   Team — js/screens/team.js
+   ———————————————————————————————————————————————— */
+
+/* what each role can do: three columns of open typography, no cards */
+.role-caps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  max-width: 900px;
+}
+.role-caps .rc-name {
+  font-size: var(--text-13);
+  font-weight: var(--w-medium);
+  color: var(--text-strong);
+}
+/* these are sentences an admin reads before changing someone's access,
+   so 13px. 12px is labels, dates and metadata. */
+.role-caps .rc-desc {
+  margin-top: 5px;
+  font-size: var(--text-13);
+  color: var(--text-subtle);
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+@media (max-width: 900px) {
+  .role-caps { grid-template-columns: 1fr; gap: 16px; }
+}
+
+/* role select living inside a 56px table row: no chrome until you reach for it */
+.select.select-inline {
+  width: auto;
+  min-width: 104px;
+  max-width: 100%;
+  padding: 3px 26px 3px 7px;
+  font-size: var(--text-12);
+  background-color: transparent;
+  background-position: right 6px center;
+  border-color: transparent;
+  color: var(--text-default);
+  border-radius: var(--r-control);
+  transition: border-color var(--dur-1) var(--ease), background-color var(--dur-1) var(--ease);
+}
+.select.select-inline:hover { border-color: var(--border); background-color: var(--input); }
+.select.select-inline:focus { border-color: var(--text-strong); background-color: var(--input); }
+
+/* the member's name and email, stacked in the identity cell beside the
+   generated identity art */
+.row .cell-stack { display: flex; flex-direction: column; min-width: 0; }
+
+/* one right-aligned action cluster, replacing an inline flex declaration.
+   The wallets table's .wl-actions does the same job and should point here. */
+.row .row-actions { display: flex; justify-content: flex-end; gap: 14px; min-width: 0; }
+
+/* a destructive link in a table row. The audit asks for a shared
+   .link-danger in app.css; scoped here until that lands, so the two can
+   never disagree. Armed says what the next click does and looks different
+   while it waits, and it disarms itself after 4s (team.js). */
+.row .link-danger { color: var(--negative); }
+.row .link-danger.armed {
+  color: var(--negative);
+  font-weight: var(--w-medium);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* .demo-strip is NOT here: it was declared twice (here and
+   screens-trade.css) with conflicting gaps, and load order silently
+   decided which every screen got. It lives in app.css now, once. */
+
+/* ————————————————————————————————————————————————
+   Settings — js/screens/settings.js
+   ———————————————————————————————————————————————— */
+
+/* settings read as a column of prose-width definitions, not a form grid */
+.settings-body { max-width: 620px; }
+
+/* the composition fix: Security runs two columns so the right half of a
+   1040px page carries the active sessions instead of nothing. The left
+   track is capped at prose width; the right takes what is left. */
+.settings-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 560px) minmax(0, 360px);
+  gap: 48px;
+  align-items: start;
+}
+.settings-cols .settings-body { max-width: none; }
+.settings-aside { min-width: 0; }
+
+/* the three security actions wrap rather than push the column wide */
+.st-actions { flex-wrap: wrap; }
+
+/* a small label that lets the eye skip inside a section */
+.settings-body .subhead,
+.settings-aside .subhead {
+  margin: 24px 0 6px;
+  font-size: var(--text-12);
+  color: var(--text-faint);
+}
+/* at the top of its own column it needs no air above it */
+.settings-aside > .subhead:first-child { margin-top: 0; }
+@media (max-width: 900px) {
+  .settings-cols { grid-template-columns: 1fr; gap: 24px; }
+  .settings-aside > .subhead:first-child { margin-top: 24px; }
+}
+
+/* session / agreement rows: label left, one quiet action right, no lines */
+.session-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 34px;
+  padding: 5px 8px 5px 0;
+  border-radius: var(--r-card);
+  transition: background var(--dur-1) var(--ease);
+}
+.session-row:hover { background: var(--bg-hover); transition: none; }
+.session-row .sr-label {
+  font-size: var(--text-13);
+  color: var(--text-default);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* notification preferences: the whole row is the switch's hit area */
+.pref-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 38px;
+  padding: 4px 8px 4px 0;
+  border-radius: var(--r-card);
+  text-align: left;
+  transition: background var(--dur-1) var(--ease);
+}
+.pref-row:hover { background: var(--bg-hover); transition: none; }
+.pref-row .pref-label { font-size: var(--text-13); color: var(--text-default); min-width: 0; }
+/* press feedback comes from the shared .pressable, which settings.js now
+   puts on the row. It was duplicated here. */
+
+/* recovery codes: a data moment, so mono — and only here */
+.codes-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 14px;
+  padding: 2px 0 4px;
+}
+.codes-grid code {
+  font-family: var(--font-mono);
+  font-size: var(--text-13);
+  letter-spacing: 0.02em;
+  color: var(--text-strong);
+  background: var(--surface-2);
+  border-radius: var(--r-tag);
+  padding: 7px 10px;
+  text-align: center;
+  user-select: all;
+}
+
+/* ————————————————————————————————————————————————
+   Connection map — js/screens/map.js
+   Internal furniture: denser than the portal (12px cells, 44px
+   rows), same grammar (no lines, warm surfaces, sentence case).
+   ———————————————————————————————————————————————— */
+
+/* the map earns more width than an onboarding sheet. Keyed on the page's
+   own structural furniture (its header row) rather than on a text style
+   class, so restyling the title can't silently change the page width. The
+   real fix is a width option on registerScreen for zone "bare" screens,
+   which lives in app.js and is not this file's to make. */
+.bare-body:has(.map-top) { max-width: 1240px; padding-top: 20px; }
+
+.map-top {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 4px 0 24px;
+}
+.map-top .map-top-right { margin-left: auto; }
+
+/* the same 30px page title as .ob-title and .page-head h1. --text-30 is
+   the shared token when app.css lands it; the literal is the fallback. */
+.map-title {
+  font-size: var(--text-30, 30px);
+  font-weight: var(--w-title);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--text-strong);
+}
+.map-lede {
+  margin-top: 9px;
+  max-width: 700px;
+  font-size: var(--text-14);
+  color: var(--text-subtle);
+}
+
+/* the two locked conventions: key/value prose, no boxes, no borders */
+.map-locked { margin-top: 24px; max-width: 880px; }
+.map-locked .ml-row {
+  display: flex;
+  gap: 18px;
+  padding: 7px 0;
+  align-items: baseline;
+}
+.map-locked .ml-key {
+  flex: 0 0 200px;
+  font-size: var(--text-12);
+  color: var(--text-faint);
+}
+.map-locked .ml-val {
+  min-width: 0;
+  font-size: var(--text-13);
+  color: var(--text-default);
+  line-height: 1.55;
+}
+@media (max-width: 700px) {
+  .map-locked .ml-row { flex-direction: column; gap: 2px; }
+  .map-locked .ml-key { flex: none; }
+}
+
+.map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin-top: 24px;
+}
+.map-legend .ml-legend-item { display: inline-flex; align-items: baseline; gap: 8px; }
+
+/* status badge: the dot carries the hue, the word carries the meaning.
+   shipped = positive · specced = in process · build = inert.
+   Same fixed vocabulary as UI.statusDot; never a new hue, never a chip. */
+.map-badge {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: var(--text-12);
+  line-height: 1.5;   /* a fixed first line, so a wrapping status cell keeps its top edge */
+  color: var(--text-default);
+  white-space: nowrap;
+}
+.map-badge i {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--st-neutral);
+  flex: none;
+  transform: translateY(-1px);
+}
+.mb-shipped i { background: var(--st-positive); }
+.mb-specced i { background: var(--st-info); }
+.mb-build i { background: var(--st-neutral); }
+
+.map-sub { font-size: var(--text-12); color: var(--text-faint); }
+
+.map-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 32px 0 10px;
+}
+.map-bar .map-seg { margin-left: auto; }
+
+/* the table: a grid, so columns align without a single rule line */
+.map-table { width: 100%; min-width: 0; }
+.map-head,
+.map-row {
+  display: grid;
+  grid-template-columns: 23% 27% 23% minmax(0, 1fr);
+  gap: 18px;
+  padding: 0 12px;
+}
+.map-head {
+  height: 34px;
+  align-items: center;
+}
+.map-head span {
+  font-size: var(--text-12);
+  color: var(--text-faint);
+  font-weight: var(--w-body);
+}
+/* the pillar head carries the one categorical dimension on this page: four
+   groups, four identity hues, rendered by UI.ccy("p1".."p4"). The swatch is
+   9px and squarish; the status badges below stay 6px and round. This is the
+   whole colour budget of the screen and there is no fill anywhere on it. */
+.map-pillar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-12);
+  color: var(--text-faint);
+  padding: 24px 12px 8px;
+}
+.map-pillar .cat { align-items: center; }
+.map-pillar .cat i { transform: none; }
+
+/* rows start-align rather than baseline-align: the status cell wraps to
+   three lines on the longest rows, and a baseline shifted the whole row's
+   anchor with it. Now every row's first line sits on the same line. */
+.map-row {
+  align-items: start;
+  min-height: 44px;
+  padding-top: 11px;
+  padding-bottom: 11px;
+  border-radius: var(--r-card);
+  transition: background var(--dur-1) var(--ease);
+}
+.map-row:hover { background: var(--bg-hover); transition: none; }
+.map-row .mr-a {
+  font-size: var(--text-13);
+  color: var(--text-strong);
+  min-width: 0;
+  line-height: 1.45;
+}
+.map-row .mr-c {
+  font-size: var(--text-12);
+  color: var(--text-subtle);
+  min-width: 0;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+.map-row .mr-s {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  align-content: start;
+  gap: 4px 8px;
+  min-width: 0;
+  font-size: var(--text-12);
+  color: var(--text-subtle);
+  line-height: 1.5;
+}
+
+/* a filtered-to-empty table is a row-level absence, not a page-level one */
+.map-table .empty { padding: 36px 0; }
+
+.map-foot {
+  margin-top: 32px;
+  max-width: 760px;
+  line-height: 1.5;
+}
+
+/* narrow viewports: the table scrolls sideways rather than crushing
+   four columns into unreadable slivers */
+@media (max-width: 900px) {
+  .map-table { overflow-x: auto; }
+  .map-head, .map-row, .map-pillar { min-width: 840px; }
+  .map-title { font-size: 24px; }
+}

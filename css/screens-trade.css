@@ -1,0 +1,405 @@
+/* screens-trade — wave-2 screen styles for Trade and History.
+   Owner writes here ONLY; never edit app.css or tokens.css.
+   Everything is namespaced: .trade- / .tq- / .rt- (Trade),
+   .hx- (History), .doc- (the statement document overlay, class names
+   verbatim from the design-system bundle so the two codebases stay one
+   system).
+   All color/type/spacing through tokens; both themes by construction.
+
+   .demo-strip is NOT here: it was declared twice (here and
+   screens-manage.css) with conflicting rules and this file loads first,
+   so Trade's and History's intended 6px gap silently lost. It now lives
+   once, authoritatively, in app.css. */
+
+/* ————— trade: two-column layout — quote flow + open-typography rail ————— */
+
+.trade-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 32px 64px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  /* minmax(0,) so a nowrap span inside the panel can never widen the page */
+  .trade-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* the rail's blocks use the shared .open-block (label + figure + sub, no
+   container) — .tq-block used to re-implement its exact shape. */
+
+/* rail block heads — quieter than a section head, still skippable by eye */
+.tq-block-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: var(--text-13);
+  color: var(--text-default);
+  margin-bottom: 9px;
+}
+
+/* tier + limit — open typography, never boxed */
+.tq-tier {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-18);
+  font-weight: var(--w-medium);
+  color: var(--text-strong);
+  letter-spacing: -0.01em;
+}
+.tq-limit {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-16);
+  font-weight: var(--w-medium);
+  color: var(--text-strong);
+  letter-spacing: -0.01em;
+}
+.tq-limit .tq-per { font-size: var(--text-12); font-weight: var(--w-body); color: var(--text-subtle); margin-left: 6px; }
+.tq-tier-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+
+/* a plain statement of fact — sentence, not a tinted alarm */
+.tq-statement { font-size: var(--text-14); color: var(--text-default); line-height: 1.55; }
+.tq-statement + .tq-actions { margin-top: 16px; }
+
+/* amount field — one column wide; balances sit beside the label */
+.tq-amt-field { max-width: 320px; }
+.tq-label-row { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; }
+.tq-label-row label { margin-bottom: 6px; }
+.tq-avail { font-size: var(--text-12); color: var(--text-subtle); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* links inside a note inherit the note's voice */
+.tq-note .link { color: inherit; text-decoration: underline; font-size: inherit; }
+
+/* rail empties are quieter than page empties */
+.tq-empty { padding: 10px 0 4px; font-size: var(--text-13); color: var(--text-subtle); }
+
+/* the pair picker carries currency identity: a 9px squarish swatch, never a
+   round dot (round dots are the status vocabulary). Colour lives in the
+   swatch only; the pair id stays neutral text. */
+.tq-pair-btn .cat { margin-right: 6px; }
+
+/* the executable rate — typeset, tabular, commands the panel. It assembles
+   per digit on the frame the quote lands (18ms stagger: fewer, larger
+   glyphs want a tighter cascade than money's 22ms). */
+.tq-rate-row { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.tq-rate {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-34, 34px);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-weight: var(--w-title);
+  color: var(--text-strong);
+}
+.tq-rate.struck {
+  text-decoration: line-through;
+  color: var(--text-faint);
+  font-size: 22px;
+  font-weight: var(--w-body);
+}
+.tq-ref { font-size: var(--text-12); color: var(--text-subtle); }
+
+/* ————— the lock — THE one saturated fill on this screen —————
+   Three separate motions, deliberately unlike each other:
+   1. arrival — one draw-in, scaleX(0) → 1 from the left, 320ms out-expo,
+      on the frame the quote lands. Then it hands off to the clock.
+   2. the drain — width, driven by Date.now() every frame. LINEAR and
+      un-eased. That is honesty about time passing and must never be
+      "fixed" into a curve.
+   3. the amber shift under 5 s — a 200ms background crossfade, not a
+      same-frame snap. */
+.tq-lock { margin-top: 16px; }
+.tq-lock-bar {
+  height: 3px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  overflow: hidden;
+  transition: background 200ms var(--ease);
+}
+.tq-lock-fill {
+  display: block;
+  height: 100%;
+  width: 100%;
+  border-radius: 2px;
+  background: var(--accent);
+  transition: background 200ms var(--ease);
+}
+.tq-lock.arriving .tq-lock-fill {
+  transform-origin: left;
+  animation: tq-lock-in 320ms var(--ease-out-expo) both;
+}
+@keyframes tq-lock-in { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.tq-lock.low .tq-lock-bar { background: color-mix(in srgb, var(--warning) 16%, transparent); }
+.tq-lock.low .tq-lock-fill { background: var(--warning); }
+.tq-lock-secs {
+  margin-top: 7px;
+  font-size: var(--text-12);
+  color: var(--text-subtle);
+  font-variant-numeric: tabular-nums;
+}
+
+/* pay / receive — open typography, hairline-separated like the stat strip */
+.tq-amts { display: grid; grid-template-columns: 1fr 1fr; margin-top: 24px; }
+.tq-amts > * { min-width: 0; padding: 4px 20px 6px; border-left: 1px solid var(--border-faint); }
+.tq-amts > :first-child { border-left: none; padding-left: 0; }
+
+.tq-actions { display: flex; gap: 8px; margin-top: 24px; flex-wrap: wrap; }
+
+/* rolling-volume meter — ink, not a hue; data, not decoration. Grey is
+   correct here: the lock already owns this screen's accent. */
+.tq-meter {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--surface-2);
+  overflow: hidden;
+  max-width: 320px;
+}
+.tq-meter i { display: block; height: 100%; border-radius: 2px; background: var(--text-faint); }
+
+/* recent trades — open list rows, Repeat is one action */
+.rt-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 0 10px;
+  margin: 0 -10px;
+  border-radius: var(--r-card);
+  transition: background var(--dur-1) var(--ease);
+}
+.rt-row:hover { background: var(--bg-hover); transition: none; }
+.rt-txt { min-width: 0; }
+.rt-main { display: block; font-size: var(--text-13); color: var(--text-default); font-variant-numeric: tabular-nums; }
+/* a sentence a treasurer reads is 13px; 12px is labels, dates and metadata */
+.rt-sub {
+  display: block;
+  font-size: var(--text-13);
+  color: var(--text-subtle);
+  font-variant-numeric: tabular-nums;
+  margin-top: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rt-row .btn { flex: none; margin-left: auto; }
+
+/* segmented pair/side pickers — disabled options stay legible, never vanish */
+.seg-btn:disabled { opacity: 0.4; cursor: default; pointer-events: none; }
+
+/* ————— history: drill-in expands in place, context never lost ————— */
+
+.hx-detail { grid-column: 1 / -1; padding: 4px 12px 20px 30px; min-width: 0; }
+.row.hx-open { min-height: 0; cursor: default; }
+.row.hx-open:hover { background: transparent; }
+
+/* only the row you just opened animates — the rest of the table must not
+   move under the reader. Opacity + 6px, 200ms, the M7 local-change grammar. */
+.hx-detail.rise-local { animation: hx-detail-in 200ms var(--ease-snappy) both; }
+@keyframes hx-detail-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* the caret is the only chrome that says "this opens" */
+.hx-caret { color: var(--text-faint); flex: none; transition: transform var(--dur-2) var(--ease); }
+.row.hx-row.open .hx-caret { transform: rotate(90deg); }
+.hx-main-txt { min-width: 0; }
+.hx-main-txt .name, .hx-main-txt .desc { display: block; }
+.hx-nil { color: var(--text-faint); }
+
+/* the amount cell carries currency identity: swatch, then the figure. One
+   categorical dimension per screen, and on a screen with money that
+   dimension is currency — which is why the Type column stays a neutral tag
+   and why no accent text is added here. */
+.hx-amt { display: flex; align-items: baseline; justify-content: flex-end; gap: 8px; min-width: 0; }
+.hx-amt .cat { flex: none; }
+
+/* the detail: lifecycle spine beside the facts, both readable at a glance */
+.hx-detail-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: 10px 48px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .hx-detail-cols { grid-template-columns: 1fr; }
+  .hx-detail { padding-left: 12px; }
+}
+.hx-detail-head { font-size: var(--text-12); color: var(--text-faint); margin-bottom: 10px; }
+.hx-next { margin-top: 14px; }
+
+/* the statements table's group label carries the currency swatch. No nudge
+   here: .cat already baseline-aligns its own swatch. */
+.hx-stmt-group { white-space: nowrap; }
+
+/* ————— the statement document overlay —————
+   Ported from the design-system bundle (css/app.css, "statement document
+   overlay") so the class names stay identical across both codebases. It
+   belongs in app.css; it lives here because app.css is owned by another
+   agent this wave. If it moves, delete this block rather than forking it.
+   A document viewer, not a modal: it holds no form and takes no decision,
+   which is why it is not a UI.drawer. Esc and the scrim close it. */
+.doc-overlay { position: fixed; inset: 0; z-index: 95; opacity: 0; transition: opacity var(--dur-exit) var(--ease); }
+.doc-overlay.open { opacity: 1; transition-duration: var(--dur-3); }
+.doc-scrim { position: absolute; inset: 0; background: color-mix(in srgb, var(--bg-sunken) 74%, transparent); backdrop-filter: blur(6px); }
+.doc-scroll { position: absolute; inset: 0; overflow-y: auto; padding: 40px 20px; display: flex; justify-content: center; align-items: flex-start; }
+.doc-sheet {
+  position: relative;
+  width: min(780px, 100%);
+  max-height: calc(100vh - 80px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--card-bg);
+  border-radius: var(--r-panel);
+  box-shadow: var(--elev-3);
+  transform: translateY(10px) scale(0.99);
+  transition: transform var(--dur-exit) var(--ease);
+}
+.doc-overlay.open .doc-sheet { transform: none; transition: transform 260ms var(--ease-snappy); }
+/* the toolbar is a fixed flex header (not sticky) — the paper below scrolls */
+.doc-toolbar { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border-faint); background: var(--card-bg); }
+.doc-scopes { display: flex; gap: 2px; flex-wrap: wrap; }
+.doc-scope { padding: 5px 12px; border-radius: 999px; font-size: var(--text-12); color: var(--text-subtle); }
+.doc-scope:hover { background: var(--bg-hover); }
+.doc-scope.active { background: var(--bg-selected); color: var(--text-strong); }
+.doc-tools { display: flex; align-items: center; gap: 8px; }
+/* the overlay sits above the toast, so its own confirmations land here */
+.doc-msg { font-size: var(--text-12); color: var(--text-subtle); }
+
+.doc-paper { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 40px 44px 32px; scrollbar-width: none; }
+.doc-paper::-webkit-scrollbar { display: none; }
+@media (max-width: 700px) { .doc-paper { padding: 28px 20px; } }
+.doc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding-bottom: 22px; border-bottom: 1px solid var(--border-faint); }
+.doc-brand { display: inline-flex; align-items: center; gap: 8px; font-size: var(--text-16); font-weight: var(--w-medium); color: var(--text-strong); }
+.doc-lock { height: 18px; width: auto; display: block; color: var(--text-strong); }
+.doc-biz { color: var(--text-subtle); font-weight: var(--w-body); }
+.doc-entity { font-size: var(--text-12); color: var(--text-subtle); margin-top: 6px; }
+.doc-head-right { text-align: right; }
+.doc-title { font-size: var(--text-14); font-weight: var(--w-medium); color: var(--text-default); }
+.doc-period { font-size: var(--text-13); color: var(--text-subtle); margin-top: 4px; }
+
+.doc-meta { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; padding: 20px 0; border-bottom: 1px solid var(--border-faint); }
+@media (max-width: 700px) { .doc-meta { grid-template-columns: 1fr; gap: 10px; } }
+.doc-k { display: block; font-size: var(--text-12); color: var(--text-faint); }
+.doc-v { display: block; font-size: var(--text-13); color: var(--text-default); margin-top: 3px; }
+/* the account name the sending bank checks: verbatim, never truncated */
+.doc-v.doc-verbatim { white-space: normal; word-break: break-word; }
+
+.doc-balances { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 20px 0; }
+@media (max-width: 700px) { .doc-balances { grid-template-columns: repeat(2, 1fr); } }
+.doc-bal-v { display: block; font-size: var(--text-16); color: var(--text-strong); margin-top: 6px; font-variant-numeric: tabular-nums; }
+.doc-bal-strong .doc-bal-v { color: var(--text-strong); font-weight: var(--w-medium); }
+
+/* a statement is the one place row rules are correct: it is a document,
+   not a screen table, and the law permits the rule above a totals line. */
+.doc-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+.doc-table th { text-align: left; font-size: var(--text-12); font-weight: var(--w-body); color: var(--text-faint); padding: 8px 10px; border-bottom: 1px solid var(--border-faint); }
+.doc-table td { font-size: var(--text-13); color: var(--text-default); padding: 10px; border-bottom: 1px solid var(--border-faint); vertical-align: top; }
+.doc-table .r { text-align: right; }
+.doc-table .num { font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.doc-tag { font-size: var(--text-12); font-weight: var(--w-medium); letter-spacing: 0; color: var(--text-subtle); background: color-mix(in srgb, var(--text-subtle) 10%, transparent); border-radius: var(--r-tag); padding: 1px 6px; white-space: nowrap; }
+.doc-opening td, .doc-closing td { color: var(--text-subtle); font-size: var(--text-12); background: var(--surface-2); }
+.doc-closing td { color: var(--text-strong); font-weight: var(--w-medium); }
+.doc-sub { display: block; font-size: var(--text-12); color: var(--text-subtle); margin-top: 2px; }
+.doc-empty { padding: 28px 10px; font-size: var(--text-13); color: var(--text-subtle); }
+
+.doc-summary { margin-top: 20px; margin-left: auto; width: min(300px, 100%); }
+.doc-sum-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; font-size: var(--text-13); }
+.doc-sum-row:first-child { color: var(--text-faint); font-size: var(--text-12); border-bottom: 1px solid var(--border-faint); padding-bottom: 8px; margin-bottom: 4px; }
+.doc-foot { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--border-faint); font-size: var(--text-12); color: var(--text-faint); }
+.doc-foot p { max-width: 62ch; }
+@media (max-width: 700px) { .doc-foot { flex-direction: column; align-items: flex-start; gap: 4px; } }
+
+/* ————— reduced motion — movement goes, opacity stays ————— */
+
+/* The law asks for movement stripped and opacity kept, not a dead screen, so
+   these out-specify the global 0.01ms override in tokens.css the same way the
+   shared primitives in app.css do. The lock's drain is a width driven by the
+   clock, not a transition, so it keeps working here — which is right: the
+   seconds are the product, and they must still be visible. */
+@media (prefers-reduced-motion: reduce) {
+  .tq-lock.arriving .tq-lock-fill { animation: none !important; }
+  .hx-detail.rise-local { animation: hx-detail-fade 200ms var(--ease) both !important; }
+  .doc-overlay { transition-duration: var(--dur-3) !important; }
+  .doc-sheet, .doc-overlay.open .doc-sheet { transform: none !important; transition: none !important; }
+  @keyframes hx-detail-fade { from { opacity: 0; } to { opacity: 1; } }
+}
+
+/* ───── the trade object — OpenFX structure, Prime skin (2026-09-03) ─────
+   Two hosted-surface cards (warm paper, never dark), a round swap button
+   floating between them, one full-width morphing CTA. These are form
+   controls, not stat boxes: the boxed-number ban covers display KPIs. */
+.tx-wrap { max-width: 560px; }
+.tx-object { position: relative; display: flex; flex-direction: column; gap: 6px; }
+.tx-card { background: var(--surface-2); border-radius: 16px; padding: 16px 18px 13px; }
+.tx-row1 { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 30px; }
+.tx-label { font-size: var(--text-12); color: var(--text-subtle); }
+.tx-cur { display: inline-flex; align-items: center; font-size: var(--text-13); font-weight: var(--w-medium); color: var(--text-strong); }
+.tx-sel { width: auto; min-width: 92px; }
+.tx-amt {
+  display: block;
+  width: 100%;
+  border: none;
+  background: none;
+  outline: none;
+  padding: 8px 0 6px;
+  font: inherit;
+  font-size: 27px;
+  font-weight: var(--w-medium);
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-strong);
+}
+.tx-amt::placeholder { color: var(--text-faint); font-weight: var(--w-body); }
+.tx-amt-out { min-height: 41px; }
+.tx-amt-out.est, .tx-amt-out.est .money-sym, .tx-amt-out.est .money-dec, .tx-amt-out.est .money-ccy { color: var(--text-subtle); }
+.tx-row3 { display: flex; justify-content: space-between; gap: 12px; font-size: var(--text-12); color: var(--text-faint); }
+.tx-swap-row { display: flex; justify-content: center; height: 0; position: relative; z-index: 2; }
+.tx-swap {
+  position: relative;
+  top: -16px;
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg);
+  color: var(--text-subtle);
+  border: none;
+  box-shadow: var(--elev-1);
+  cursor: pointer;
+  z-index: 2;
+  transition: color var(--dur-2) var(--ease);
+}
+.tx-swap:hover { color: var(--text-strong); transition: none; }
+.tx-swap:disabled { opacity: 0.45; cursor: default; pointer-events: none; }
+.tx-quote-row { margin-top: 16px; }
+.tx-rate-line { display: block; font-size: var(--text-13); color: var(--text-default); font-variant-numeric: tabular-nums; margin-bottom: 8px; }
+.tx-meta { margin-top: 14px; }
+.tx-meta .tag { margin-left: 6px; }
+.tx-cta { width: 100%; justify-content: center; margin-top: 16px; }
+.tx-under { text-align: center; margin-top: 10px; }
+
+/* — the shared trade-details drawer: legs card with the rate chip between — */
+.txd-legs { position: relative; margin-top: 18px; background: var(--surface-2); border-radius: 12px; padding: 2px 16px; }
+.txd-leg { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 0; }
+.txd-what { display: flex; flex-direction: column; gap: 3px; }
+.txd-cur { font-size: var(--text-13); }
+.txd-amt { font-size: var(--text-16); font-weight: var(--w-medium); letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+.txd-pill {
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--bg);
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: var(--text-12);
+  color: var(--text-subtle);
+  box-shadow: var(--elev-1);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* trade history amounts: left-aligned with their headers, tabular */
+.txh-amt { font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.txh-amt.sub, .txh-amt.sub .money-sym, .txh-amt.sub .money-dec, .txh-amt.sub .money-ccy { color: var(--text-subtle); }
