@@ -336,10 +336,10 @@
       return t;
     }
     t.push({ label: "Pending review",
-      state: w.state === "submitted" ? "todo" : w.state === "pending" ? "active" : "done",
+      state: w.state === "submitted" ? "todo" : w.state === "pending" ? "pending" : "done",
       time: w.reviewTs ? UI.fmtTs(w.reviewTs) : "" });
     t.push({ label: "Test transfer",
-      state: w.state === "verified" ? "active" : w.state === "tested" ? "done" : "todo",
+      state: w.state === "verified" ? "pending" : w.state === "tested" ? "done" : "todo",
       time: w.testTs ? UI.fmtTs(w.testTs) : "" });
     t.push({ label: "Approved", state: w.state === "tested" ? "done" : "todo" });
     return t;
@@ -358,7 +358,7 @@
       return t;
     }
     t.push({ label: "Pending review",
-      state: b.state === "submitted" ? "todo" : b.state === "pending" ? "active" : "done",
+      state: b.state === "submitted" ? "todo" : b.state === "pending" ? "pending" : "done",
       time: b.reviewTs ? UI.fmtTs(b.reviewTs) : "" });
     t.push({ label: "Approved", state: b.state === "verified" ? "done" : "todo" });
     return t;

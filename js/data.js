@@ -105,8 +105,8 @@
     journey: { review: "not_started", entity: "institution", submittedIso: null, comments: [], rejectedReason: null, railsIssuing: false },
 
     deposits: [
-      { id: "D-2214", cur: "AED", amount: 2450000.00, state: "processing", via: "bank", ts: agoIso(74), crTs: null, sender: "Emirates NBD · your whitelisted account" },
-      { id: "D-2213", cur: "AED", amount: 5000000.00, state: "credited", via: "bank", ts: agoIso(60 * 22), crTs: agoIso(60 * 21), sender: "Emirates NBD · your whitelisted account" },
+      { id: "D-2214", cur: "AED", amount: 2450000.00, state: "processing", via: "bank", ts: agoIso(74), crTs: null, sender: "Emirates NBD · AE45 0260 ···· 4471" },
+      { id: "D-2213", cur: "AED", amount: 5000000.00, state: "credited", via: "bank", ts: agoIso(60 * 22), crTs: agoIso(60 * 21), sender: "Emirates NBD · AE45 0260 ···· 4471" },
       { id: "D-2209", cur: "USDT", amount: 1000000.00, state: "credited", via: "chain", ts: agoIso(60 * 96), crTs: agoIso(60 * 95), sender: "TRON · TAbCk…9fK2" }
     ],
     // deposit states: detected/processing → credited · failed (client labels: Processing → Completed · Failed)
@@ -138,7 +138,7 @@
       { id: "WL-2", label: "Ops hot", net: "Ethereum", addr: "0x3D91b7e4A2c85F60D14aB9cE7f2a4408Bb21C4dE", state: "verified", added: agoIso(60 * 24 * 9), testTs: null, missing: [], reason: null },
       { id: "WL-3", label: "Custody", net: "Bitcoin", addr: "bc1qxw4l9k72m3trv8n0p5yj6c2s8u7d34a9e7slw", state: "pending", added: agoIso(60 * 24 * 2), testTs: null, reason: null },
       { id: "WL-4", label: "Market ops", net: "TRON", addr: "TXpQr7Vw2aZs5cLm8dKe4uYh1nB6fJ3g0t", state: "verified", added: agoIso(60 * 24 * 6), testTs: null, reason: null },
-      { id: "WL-5", label: "Broker", net: "Ethereum", addr: "0x99Af10c2E44b7D06a913fF25C08bb1a2843DdE07", state: "rejected", added: agoIso(60 * 24 * 12), testTs: null, missing: [], reason: "This address failed screening and can't be whitelisted. Contact support if that looks wrong." }
+      { id: "WL-5", label: "Broker", net: "Ethereum", addr: "0x99Af10c2E44b7D06a913fF25C08bb1a2843DdE07", state: "rejected", added: agoIso(60 * 24 * 12), testTs: null, missing: [], reason: "This address failed screening and can't be added. Contact support if that looks wrong." }
     ],
     // wallet states: submitted → pending → verified (client sends the Satoshi test) → tested · rejected
     // client labels: Submitted → Pending review → Test transfer → Approved · Rejected
@@ -627,7 +627,7 @@
 
     simulateDeposit: function (amount) { // webhook: AED credit detected on the vIBAN
       var a = amount || 3200000;
-      var d = { id: "D-" + (nextIds.dep++), cur: "AED", amount: a, state: "detected", via: "bank", ts: nowIso(), crTs: null, sender: "Emirates NBD · your whitelisted account" };
+      var d = { id: "D-" + (nextIds.dep++), cur: "AED", amount: a, state: "detected", via: "bank", ts: nowIso(), crTs: null, sender: "Emirates NBD · AE45 0260 ···· 4471" };
       S.deposits.unshift(d);
       Data.notify("Deposit detected · AED " + Number(a.toFixed(2)).toLocaleString("en-US"), "It joins your available balance once completed.", "dashboard");
       emit("deposits");

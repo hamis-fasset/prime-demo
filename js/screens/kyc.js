@@ -19,27 +19,33 @@
    · no field is ever prefilled in a fresh journey: a defaulted fact
      is a wrong fact
    · resubmit mode unlocks only the steps the reviewer flagged, pins
-     their comments to those steps, tags what changed "Updated", and
-     keeps every untouched step read-only
+     their comments to those steps as rows that open the drawer, tags
+     what changed "Updated", and keeps every untouched step read-only
 
    States per element: loading (one skeleton pass per app load) ·
    empty (leadership with no people yet; a step with nothing filled) ·
    error/failed (upload rejected, save failed, per-field and
-   whole-step validation) · stale/degraded (the last-saved line, and
-   the unsaved-step warning after a failed save) · permission-denied
-   (a viewer teammate, and read-only steps in resubmit mode, and the
-   whole wizard once the application is with the reviewer).
+   whole-step validation) · stale/degraded (the saved line after a
+   save, and the didn't-save line after a failed one) ·
+   permission-denied (a viewer teammate, and read-only steps in
+   resubmit mode, and the whole wizard once the application is with
+   the reviewer).
 
    Zone is "onboard". Submitting sets review = in_review and hands
    off to the hub. Data API: Data.state.journey · Data.setJourney.
 
-   Wave-3: every local move (a step change, a finished upload, a save,
-   adding a person, jumping to the review) used to call App.rerender(),
-   which rebuilds .screen and replays the whole page entrance. Now the
-   spine updates in place and only the step body repaints (UI.repaint,
-   200ms), so filling a form never re-animates the page around you.
-   Submitting carries the settle: the one moment in onboarding where the
-   client hands over everything they have.
+   Every local move (a step change, a finished upload, a save, adding
+   a person, jumping to the review) repaints the spine in place and
+   the step body over 200ms (UI.repaint), so filling a form never
+   re-animates the page around you. Submitting carries the settle.
+
+   2026-09-04 (Hamis taste pass): no sentence under a step title, no
+   "Step 2 of 5" line (the spine is that fact), no reassurance about
+   saving, no orientation notes in resubmit mode. Reviewer comments
+   are rows; the text lives in the drawer. Upload boxes carry the
+   accepted types and the file name, nothing else. The review's
+   primary action is never a disabled button with a warning: if a
+   step is incomplete the button takes you to it.
    ———————————————————————————————————————————————— */
 (function () {
   "use strict";
@@ -49,7 +55,7 @@
 
   var KYCDEF = {
     institution: [
-      { id: "pd", title: "Personal details", sub: "About you, the applicant", fields: [
+      { id: "pd", title: "Personal details", fields: [
         { k: "name", label: "Full name", type: "text", sample: "Reem Al Suwaidi" },
         { k: "phone", label: "Phone", type: "text", sample: "+971 50 123 4567" },
         { k: "nat", label: "Nationality", type: "select", opts: NATS, sample: "United Arab Emirates" },
@@ -60,7 +66,7 @@
         { k: "legal", label: "Legal name", type: "text", sample: "Delos Financial Limited" },
         { k: "reg", label: "Registration number", type: "text", sample: "DED-1048221", mono: true },
         { k: "cty", label: "Country of incorporation", type: "select", opts: NATS, sample: "United Arab Emirates" },
-        { k: "est", label: "Date of establishment", type: "text", ph: "DD/MM/YYYY", sample: "14/03/2016", hint: "Enter the date exactly as it appears on your licence." },
+        { k: "est", label: "Date of establishment", type: "text", ph: "DD/MM/YYYY", sample: "14/03/2016" },
         { k: "addr", label: "Registered address", type: "text", sample: "Level 12, ICD Brookfield Place, DIFC, Dubai" },
         { k: "tax", label: "Tax registration number", type: "text", sample: "100-3345-90812", mono: true }
       ]},
@@ -68,7 +74,7 @@
         { k: "lic", label: "Trade licence", type: "upload" },
         { k: "coi", label: "Certificate of incorporation", type: "upload" },
         { k: "moa", label: "Memorandum of association", type: "upload" },
-        { k: "bod", label: "Board resolution", type: "upload", template: true, hint: "Download the template, sign it, and upload the signed copy." }
+        { k: "bod", label: "Board resolution", type: "upload", template: true }
       ]},
       { id: "sf", title: "Source of funds", fields: [
         { k: "src", label: "Primary source", type: "select", opts: ["Operating revenue", "Investment proceeds", "Shareholder capital", "Other"], sample: "Operating revenue" },
@@ -100,13 +106,15 @@
       ]},
       { id: "dr", title: "Documents", fields: [
         { k: "pass", label: "Passport", type: "uploadfb", types: "JPG or PNG" },
-        { k: "poa", label: "Proof of address, utility bill or bank letter under 3 months old", type: "upload" }
+        // the one hint that survives: it is an instruction about the document
+        { k: "poa", label: "Proof of address", type: "upload", hint: "Utility bill or bank letter, issued in the last 3 months, in your name." }
       ]}
     ]
   };
 
   var W = null;              // the live wizard, screen-local
   var loadedOnce = false;
+  var PENDING_STEP = null;   // a step the hub asked us to open (a flagged item's "Fix")
 
   function sampleLeaders() {
     return [
@@ -157,6 +165,11 @@
     var entity = Data.state.journey.entity || "institution";
     var mode = modeFor();
     if (!W || W.entity !== entity || W.mode !== mode) init(entity, mode);
+    // the hub's "Fix" on a flagged item lands on that step
+    if (PENDING_STEP !== null) {
+      if (PENDING_STEP >= 0 && PENDING_STEP < W.steps.length && !stepLocked(PENDING_STEP)) W.step = PENDING_STEP;
+      PENDING_STEP = null;
+    }
     return W;
   }
 
@@ -176,7 +189,8 @@
     progress: function () {
       if (!W) return null;
       return { done: W.done.filter(Boolean).length, total: W.steps.length, mode: W.mode };
-    }
+    },
+    goTo: function (i) { PENDING_STEP = i; }
   };
 
   // ————— uploads: honest, typed, progressive, rejectable —————
@@ -190,19 +204,21 @@
     return upState(f.k).done;
   }
 
+  // the box says one thing at a time: what it accepts, or the file it
+  // holds, or what went wrong and what to do
   function upBoxHtml(key, f, isImg, ro) {
     var st = upState(key);
     var types = f.types || "PDF, JPG or PNG";
     if (st.err) {
-      return '<div class="up-box up-err"><span class="up-meta"><strong>Upload rejected.</strong> ' + UI.esc(st.err) + "</span>" +
+      return '<div class="up-box up-err"><span class="up-meta">' + UI.esc(st.err) + "</span>" +
         (ro ? "" : '<button class="btn btn-sm btn-secondary" data-upgo="' + key + '" type="button">Try again</button>') + "</div>";
     }
     if (st.done) {
-      return '<div class="up-box up-done"><span class="up-meta"><strong>' + UI.esc(st.fileName || fileName(f, isImg)) + "</strong> · uploaded</span>" +
+      return '<div class="up-box up-done"><span class="up-meta">' + UI.esc(st.fileName || fileName(f, isImg)) + "</span>" +
         (ro ? "" : '<button class="btn btn-sm btn-secondary" data-upgo="' + key + '" type="button">Replace</button>') + "</div>";
     }
     if (ro) return '<div class="up-box"><span class="up-meta">Not uploaded.</span></div>';
-    return '<div class="up-box"><span class="up-meta">' + UI.esc(f.label) + " · <strong>" + UI.esc(types) + "</strong> · max 10 MB</span>" +
+    return '<div class="up-box"><span class="up-meta">' + UI.esc(types) + " · max 10 MB</span>" +
       '<span class="up-bar"><i></i></span>' +
       '<button class="btn btn-sm btn-secondary" data-upgo="' + key + '" type="button">Choose file</button></div>';
   }
@@ -217,7 +233,7 @@
     return '<div data-upwrap="' + f.k + '">' + upBoxHtml(f.k, f, false, ro) + "</div>";
   }
 
-  // Wire exactly one upload box. On completion the screen re-renders, so
+  // Wire exactly one upload box. On completion the body repaints, so
   // listeners are never attached twice and the state is the single source.
   function wireUpBox(body, key, f, isImg) {
     var wrap = body.querySelector('[data-upwrap="' + key + '"]');
@@ -239,7 +255,7 @@
         clearInterval(iv);
         if (W.armUp) {
           W.armUp = false;
-          st.err = "This file is .heic, which isn’t accepted here. " + (f.types || "PDF, JPG or PNG") + " only.";
+          st.err = ".heic isn’t accepted. Upload " + (f.types || "PDF, JPG or PNG") + ".";
         } else {
           st.done = true;
           st.fileName = fileName(f, isImg);
@@ -277,17 +293,18 @@
       h += '<input id="wf_' + f.k + '" class="input' + (f.mono ? " mono" : "") + '" value="' + UI.esc(v) +
         '" placeholder="' + UI.esc(f.ph || "") + '" autocomplete="off"' + dis + ">";
     }
-    if (f.template) h += '<div class="hint">Sign the template and upload the signed copy. ' +
-      '<button class="link link-underline" id="wfTemplate" type="button">Download the template</button></div>';
-    else if (f.hint) h += '<div class="hint">' + UI.esc(f.hint) + "</div>";
+    if (f.template && !ro) h += '<div class="hint"><button class="link link-underline" id="wfTemplate" type="button">Download the template</button></div>';
+    if (f.hint) h += '<div class="hint">' + UI.esc(f.hint) + "</div>";
     if (err) h += '<div class="hint err">' + UI.esc(err) + "</div>";
     return h + "</div>";
   }
 
   function leadershipHtml(ro) {
-    var h = '<p class="ob-sub flush">Directors and ultimate beneficial owners.</p>';
+    var h = "";
     if (!W.leaders.length) {
-      h += '<div class="empty">Nobody added yet. Add at least one person to continue.</div>';
+      // one sentence, one button
+      h += '<div class="empty empty-sm"><div>No directors or owners yet.</div>' +
+        (ro ? "" : '<button class="btn btn-secondary btn-sm" id="addLeader" type="button">Add a director or owner</button>') + "</div>";
     }
     W.leaders.forEach(function (Ld, i) {
       var e = W.errs["L" + i] || {};
@@ -302,20 +319,43 @@
         (e.phone ? '<div class="hint err">' + UI.esc(e.phone) + "</div>" : "") + "</div></div>" +
         '<div class="field-row"><div class="field"><label>Nationality</label>' +
         '<input class="input" data-lf="nat" data-li="' + i + '" value="' + UI.esc(Ld.nat || "") + '" autocomplete="off"' + dis + "></div>" +
-        '<div class="field field-own"><label>Ownership percent</label>' +
+        '<div class="field field-own"><label>Ownership %</label>' +
         '<input class="input" data-lf="own" data-li="' + i + '" inputmode="numeric" value="' + UI.esc(Ld.own || "") + '" autocomplete="off"' + dis + ">" +
         (e.own ? '<div class="hint err">' + UI.esc(e.own) + "</div>" : "") + "</div></div>" +
         '<div class="field field-flush"><label>ID document</label>' +
         '<div data-upwrap="L' + i + '">' + upBoxHtml("L" + i, { k: "L" + i, label: "ID document", types: "JPG or PNG" }, true, ro) + "</div>" +
         (e.up ? '<div class="hint err">' + UI.esc(e.up) + "</div>" : "") + "</div></div>";
     });
-    var tot = W.leaders.reduce(function (a, Ld) { return a + (parseFloat(Ld.own) || 0); }, 0);
-    h += '<div class="lead-total' + (tot > 100 ? " over" : "") + '">' +
-      (ro ? "" : '<button class="btn btn-secondary btn-sm" id="addLeader" type="button">Add person</button>') +
-      "<span>Ownership total <strong>" + tot + " percent</strong></span></div>";
-    if (W.errs.Ltotal) h += '<div class="note note-error mt-12">' + UI.esc(W.errs.Ltotal) + "</div>";
-    if (W.errs.Lnone) h += '<div class="note note-error mt-12">' + UI.esc(W.errs.Lnone) + "</div>";
+    if (W.leaders.length) {
+      var tot = W.leaders.reduce(function (a, Ld) { return a + (parseFloat(Ld.own) || 0); }, 0);
+      h += '<div class="lead-foot' + (tot > 100 ? " over" : "") + '">' +
+        (ro ? "" : '<button class="btn btn-secondary btn-sm" id="addLeader" type="button">Add a director or owner</button>') +
+        "<span>Ownership total <strong>" + tot + "%</strong></span></div>";
+    }
+    if (W.errs.Ltotal) h += '<div class="hint err mt-12">' + UI.esc(W.errs.Ltotal) + "</div>";
+    if (W.errs.Lnone) h += '<div class="hint err mt-12">' + UI.esc(W.errs.Lnone) + "</div>";
     return h;
+  }
+
+  // ————— reviewer comments: rows on the step, text in the drawer —————
+
+  function commentRowsHtml(cs) {
+    if (!cs.length) return "";
+    return '<div class="ob-rows mt-16">' + cs.map(function (c, n) {
+      return '<button class="option-row ob-row" data-hc="' + n + '" type="button">' +
+        '<span class="ob-row-main"><span class="opt-name">' + UI.esc(c.target) + "</span>" +
+        '<span class="opt-detail">Reviewer comment</span></span>' +
+        icon("chevronRight", 14, "chev") + "</button>";
+    }).join("") + "</div>";
+  }
+
+  function openComment(c) {
+    var h = UI.drawer(c.target, '<p class="ob-text">' + UI.esc(c.text) + "</p>", {
+      width: 440,
+      subtitle: c.stepName,
+      foot: '<button class="btn btn-secondary" id="kcClose" type="button">Close</button>'
+    });
+    h.el.querySelector("#kcClose").addEventListener("click", h.close);
   }
 
   // ————— the spine —————
@@ -346,18 +386,13 @@
 
   function stepBodyHtml() {
     var i = W.step, st = W.steps[i], ro = readOnly(i);
-    var h = '<h1 class="ob-title">' + UI.esc(st.title) + "</h1>" +
-      '<p class="ob-sub">Step ' + (i + 1) + " of " + W.steps.length + (st.sub ? " · " + UI.esc(st.sub) : "") + "</p>";
+    var h = '<h1 class="ob-title">' + UI.esc(st.title) + "</h1>";
 
     if (Data.state.role === "viewer") {
-      h += '<div class="note note-warning mt-16">Only an admin can work on the application. This step is read-only for you.</div>';
-    } else if (stepLocked(i)) {
-      h += '<div class="note note-warning mt-16">This step wasn’t flagged. It stays as you submitted it.</div>';
+      h += '<p class="ob-sub">Only an admin can edit the application.</p>';
     }
 
-    h += commentsFor(i).map(function (c) {
-      return '<div class="ob-comment"><div class="cw">Reviewer comment · ' + UI.esc(c.target) + "</div>" + UI.esc(c.text) + "</div>";
-    }).join("");
+    h += commentRowsHtml(commentsFor(i));
 
     h += '<div class="ob-body">';
     h += st.custom === "leadership" ? leadershipHtml(ro) : st.fields.map(function (f) { return fieldHtml(f, ro); }).join("");
@@ -366,15 +401,14 @@
     if (ro) {
       h += '<div class="ob-cta-row">' +
         (W.mode === "resub" && W.unlocked.length
-          ? '<button class="btn btn-secondary" id="wizToFlagged" type="button">Go to what the reviewer flagged</button>'
-          : '<button class="btn btn-secondary" id="wizToHub" type="button">Back to your status</button>') + "</div>";
+          ? '<button class="btn btn-primary" id="wizToFlagged" type="button">Go to the flagged steps</button>'
+          : '<button class="btn btn-primary" id="wizToHub" type="button">See your status</button>') + "</div>";
     } else {
       h += '<div class="ob-cta-row">' +
         (W.step > 0 ? '<button class="btn btn-secondary" id="wizBack" type="button">Back</button>' : "") +
         '<button class="btn btn-primary" id="wizSave" type="button">Save and continue</button>' +
-        '<span class="freshline">' + (W.lastSaved
-          ? "Last saved " + UI.esc(UI.fmtTs(W.lastSaved)) + "."
-          : "Progress saves at every step.") + "</span></div>";
+        (W.lastSaved ? '<span class="wiz-saved">Saved ' + UI.esc(UI.fmtTs(W.lastSaved)) + "</span>" : "") +
+        "</div>";
     }
     return h;
   }
@@ -382,22 +416,23 @@
   // ————— the review moment —————
 
   function reviewHtml() {
-    var h = '<h1 class="ob-title">Review your application.</h1>' +
-      '<p class="ob-sub">Everything you’re about to submit. Step ' + (W.steps.length + 1) + " of " + (W.steps.length + 1) + ".</p>";
+    var h = '<h1 class="ob-title">Review your application.</h1>';
+    var viewer = Data.state.role === "viewer";
 
     W.steps.forEach(function (st, i) {
       var chg = W.mode === "resub" && W.changed[i];
       h += '<div class="rev-group"><div class="rev-head"><span>' + (i + 1) + " · " + UI.esc(st.title) + "</span>" +
         (chg ? '<span class="tag">Updated</span>' : "") +
-        (stepLocked(i) || Data.state.role === "viewer"
+        (W.done[i] ? "" : UI.statusDot("warning", "Incomplete")) +
+        (stepLocked(i) || viewer
           ? '<span class="rev-ro">read-only</span>'
           : '<button class="link" data-rev="' + i + '" type="button">Edit</button>') +
         "</div>";
       if (st.custom === "leadership") {
         h += W.leaders.length ? W.leaders.map(function (Ld, n) {
           return '<div class="def-row"><span class="def-label">' + UI.esc(Ld.name || "Unnamed person") + "</span>" +
-            '<span class="def-value">' + UI.esc((Ld.own || "0") + " percent · ID " + (upState("L" + n).done ? "uploaded" : "missing")) + "</span></div>";
-        }).join("") : '<div class="def-row"><span class="def-label">Leadership</span><span class="def-value">nobody added yet</span></div>';
+            '<span class="def-value">' + UI.esc((Ld.own || "0") + "% · ID " + (upState("L" + n).done ? "uploaded" : "missing")) + "</span></div>";
+        }).join("") : '<div class="def-row"><span class="def-label">Directors and owners</span><span class="def-value">none added</span></div>';
       } else {
         h += st.fields.map(function (f) {
           var v = (f.type === "upload" || f.type === "uploadfb")
@@ -410,19 +445,17 @@
       h += "</div>";
     });
 
-    var allDone = W.done.every(Boolean);
-    h += '<div class="note rev-note ' + (allDone ? "note-info" : "note-warning") + '">' +
-      (allDone
-        ? "Submitting sends this to the review team."
-        : "Some steps aren’t complete yet. Finish them before submitting.") + "</div>";
+    var firstOpen = W.done.indexOf(false);
 
-    if (Data.state.role === "viewer") {
-      h += '<p class="ob-sub">Only an admin can submit the application.</p>';
+    if (viewer) {
+      h += '<div class="mt-24"><p class="ob-sub">Only an admin can submit the application.</p></div>';
+    } else if (firstOpen >= 0) {
+      // never a disabled primary with a note: the primary takes you to the work
+      h += '<div class="wiz-submit"><button class="btn btn-primary btn-lg" data-rev="' + firstOpen + '" type="button">Finish step ' + (firstOpen + 1) + "</button></div>";
     } else {
       // the button sits in its own block so the settle hairline sweeps
       // under it rather than inside it
-      h += '<div class="wiz-submit"><button class="btn btn-primary btn-lg" id="wizSubmit" type="button"' +
-        (allDone ? "" : " disabled") + ">" +
+      h += '<div class="wiz-submit"><button class="btn btn-primary btn-lg" id="wizSubmit" type="button">' +
         (W.mode === "resub" ? "Resubmit application" : "Submit application") + "</button></div>";
     }
     return h;
@@ -443,7 +476,7 @@
     var bad = false;
 
     if (st.custom === "leadership") {
-      if (!W.leaders.length) { W.errs.Lnone = "Add at least one director or beneficial owner before saving."; bad = true; }
+      if (!W.leaders.length) { W.errs.Lnone = "Add at least one director or owner."; bad = true; }
       var tot = 0;
       W.leaders.forEach(function (Ld, i) {
         var e = {};
@@ -452,11 +485,11 @@
         var own = parseFloat(Ld.own);
         if (!(own >= 1 && own <= 100)) { e.own = "1 to 100 only."; bad = true; }
         else tot += own;
-        if (!upState("L" + i).done) { e.up = "An ID document is required for every person."; bad = true; }
+        if (!upState("L" + i).done) { e.up = "Required."; bad = true; }
         if (Object.keys(e).length) W.errs["L" + i] = e;
       });
       if (tot > 100) {
-        W.errs.Ltotal = "Ownership totals " + tot + " percent. Bring it to 100 or under to save.";
+        W.errs.Ltotal = "Ownership totals " + tot + "%. It can’t exceed 100%.";
         bad = true;
       }
     } else {
@@ -506,23 +539,24 @@
 
   // ————— render —————
 
+  // the wizard once the application has left the client's hands: the
+  // state as the title, one way back to the status
   function lockedZoneHtml() {
     var r = Data.state.journey.review;
     var line = {
-      in_review: "Your application is with the review team.",
-      parked: "Your application is being reviewed before onboarding opens.",
-      approved: "Your application was approved.",
-      rejected: "Your application was declined."
-    }[r] || "There’s nothing to work on here right now.";
-    return '<div class="bare-sheet">' +
-      '<h1 class="ob-title">Nothing to fill in right now.</h1>' +
-      '<p class="ob-sub">' + UI.esc(line) + "</p>" +
-      '<div class="ob-cta-row"><button class="btn btn-primary" id="wizToHub" type="button">Back to your status</button></div>' +
+      in_review: "Pending review.",
+      parked: "Pending review.",
+      approved: "Approved.",
+      rejected: "Rejected."
+    }[r] || "Nothing to fill in.";
+    return '<div class="bare-sheet ob-sheet">' +
+      '<h1 class="ob-title">' + UI.esc(line) + "</h1>" +
+      '<div class="ob-cta-row"><button class="btn btn-primary" id="wizToHub" type="button">See your status</button></div>' +
       "</div>";
   }
 
   function skeletonHtml() {
-    return '<div class="bare-sheet bare-sheet-wide"><div class="wiz-grid"><div>' +
+    return '<div class="bare-sheet ob-sheet bare-sheet-wide"><div class="wiz-grid"><div>' +
       UI.skel("100%", "30px") + '<div class="mt-8">' + UI.skel("100%", "30px") + "</div>" +
       '<div class="mt-8">' + UI.skel("100%", "30px") + "</div></div><div>" +
       UI.skel("60%", "30px") + '<div class="mt-16">' + UI.skel("100%", "56px") + "</div>" +
@@ -554,17 +588,12 @@
     renderBody(el);
   }
 
-  // the notes above the step body: resubmit mode, and a save that failed
+  // the one note above the step body: a save that failed. What happened,
+  // then what to do, as a status and a verb.
   function notesHtml() {
-    var notes = "";
-    if (W.mode === "resub") {
-      notes += '<div class="note note-warning wiz-note">Only the flagged steps are unlocked. Resubmit from the review step when you’re done.</div>';
-    }
-    if (W.saveErr) {
-      notes += '<div class="note note-error wiz-note">We couldn’t save this step. Your answers are still here. ' +
-        '<button class="link link-underline" id="wizRetry" type="button">Retry save</button></div>';
-    }
-    return notes;
+    if (!W.saveErr) return "";
+    return '<div class="wiz-note">' + UI.statusDot("error", "This step didn’t save.") +
+      '<button class="link" id="wizRetry" type="button">Retry</button></div>';
   }
 
   function bodyHtml() {
@@ -574,7 +603,7 @@
   function renderBody(el) {
     ensure();
 
-    var h = '<div class="bare-sheet bare-sheet-wide"><div class="wiz-grid" id="wizGrid">' +
+    var h = '<div class="bare-sheet ob-sheet bare-sheet-wide"><div class="wiz-grid" id="wizGrid">' +
       spineHtml() +
       '<div class="wiz-body">' + bodyHtml() + "</div>" +
       "</div></div>";
@@ -643,9 +672,18 @@
       W.step = W.unlocked[0]; paint();
     });
 
+    // a reviewer comment row opens the drawer
+    var cs = atReview ? [] : commentsFor(W.step);
+    body.querySelectorAll("[data-hc]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var c = cs[+b.getAttribute("data-hc")];
+        if (c) openComment(c);
+      });
+    });
+
     if (atReview) {
       body.querySelectorAll("[data-rev]").forEach(function (b) {
-        b.addEventListener("click", function () { W.step = +b.getAttribute("data-rev"); paint(); });
+        b.addEventListener("click", function () { W.step = +b.getAttribute("data-rev"); W.errs = {}; paint(); });
       });
       var sub = body.querySelector("#wizSubmit");
       if (sub) sub.addEventListener("click", function () {
@@ -656,7 +694,7 @@
         // most consequential thing a client does in onboarding, so the
         // hairline runs before the hand-off to the status hub
         UI.settleFlash(sub.parentNode);
-        UI.toast(resub ? "Resubmitted. Your application is back with the review team." : "Submitted. Your application is with the review team.", "done");
+        UI.toast(resub ? "Resubmitted." : "Submitted.", "done");
         setTimeout(function () {
           Data.setJourney({ review: "in_review", submittedIso: new Date().toISOString(), comments: [] });
           W = null; // the journey is with the reviewer now
@@ -714,7 +752,7 @@
         });
         var tmpl = body.querySelector("#wfTemplate");
         if (tmpl) tmpl.addEventListener("click", function () {
-          UI.toast("Board resolution template downloaded. Upload the signed copy here.");
+          UI.toast("Template downloaded.");
         });
       }
 
@@ -738,12 +776,12 @@
     el.querySelector("#wizArmUp").addEventListener("click", function () {
       W.armUp = !W.armUp;
       syncDemo();
-      if (W.armUp) UI.toast("Armed. The next upload comes back rejected.");
+      if (W.armUp) UI.toast("Armed. The next upload comes back rejected.", "note");
     });
     el.querySelector("#wizArmSave").addEventListener("click", function () {
       W.armSave = !W.armSave;
       syncDemo();
-      if (W.armSave) UI.toast("Armed. The next save fails.");
+      if (W.armSave) UI.toast("Armed. The next save fails.", "note");
     });
     el.querySelector("#wizJump").addEventListener("click", function () {
       W.steps.forEach(function (_, i) {
@@ -762,10 +800,10 @@
   // live ownership total without re-rendering the form under the cursor
   function updateTotal(body) {
     var tot = W.leaders.reduce(function (a, Ld) { return a + (parseFloat(Ld.own) || 0); }, 0);
-    var host = body.querySelector(".lead-total");
+    var host = body.querySelector(".lead-foot");
     if (!host) return;
     var out = host.querySelector("strong");
-    if (out) out.textContent = tot + " percent";
+    if (out) out.textContent = tot + "%";
     // over 100 is a failure, so it takes the failure hue, through a class.
     // Failure is the one kind of coloured text the law allows.
     host.classList.toggle("over", tot > 100);

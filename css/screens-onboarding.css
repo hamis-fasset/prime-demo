@@ -1,11 +1,17 @@
 /* screens-onboarding — wave-2 screen styles. Owner writes here ONLY; never edit app.css or tokens.css.
    Covers the public zone (landing, signup, verify, MFA, qualification),
-   the status hub and the KYC wizard. Everything through tokens; both themes. */
+   the status hub and the KYC wizard. Everything through tokens; both themes.
 
-/* ————— the one-decision moment: question title, gray subtitle ————— */
+   2026-09-04 (Hamis taste pass): the landing specimen, the feature points,
+   the hub's three-stage spine, the tinted reviewer-comment card and the
+   rejection list are gone. What remains is the one-decision grammar, rows
+   that open the drawer, warm-paper hosted surfaces for objects you act on
+   (upload boxes, person cards), and a phone layer at 390px. */
 
-/* the 30px page title. --text-30 is the shared token when app.css lands it;
-   the literal is the fallback so the title never depends on load order. */
+/* ————— the one-decision moment: question title, optional one-line fact ————— */
+
+/* the 30px page title. --text-30 is the shared token; the literal is the
+   fallback so the title never depends on load order. */
 .ob-title {
   font-size: var(--text-30, 30px);
   font-weight: var(--w-title);
@@ -13,6 +19,8 @@
   line-height: 1.12;
   color: var(--text-strong);
 }
+/* the one gray line under a title, used only for a fact (where the link
+   went, who may act) — never a description */
 .ob-sub {
   margin-top: 10px;
   font-size: var(--text-14);
@@ -20,9 +28,10 @@
   line-height: 1.55;
 }
 .ob-sub strong { color: var(--text-default); font-weight: var(--w-medium); }
-.ob-sub.flush { margin-top: 0; }
+/* a sentence inside a drawer (a reviewer's comment, an instruction) */
+.ob-text { font-size: var(--text-13); color: var(--text-default); line-height: 1.55; }
 .ob-body { margin-top: 24px; }
-.ob-cta-row { margin-top: 24px; display: flex; align-items: center; gap: 14px; }
+.ob-cta-row { margin-top: 24px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .ob-legal { font-size: var(--text-12); color: var(--text-faint); margin-top: 14px; line-height: 1.5; }
 .bare-sheet .steps { margin-bottom: 20px; }
 
@@ -31,39 +40,12 @@
    Scoped to the bare zone: the public zone, the hub and the wizard. */
 .zone-bare .link-underline { color: inherit; text-decoration: underline; }
 
-/* landing hero — a wider single-column moment.
-   Compound selectors so the width holds whatever the sheet order is. */
-.ob-landing, .bare-sheet.ob-landing { max-width: 560px; }
-
-/* the one figure in the public zone: a price, set rather than printed.
-   Open typography: no box, no border, no fill. The two currency swatches
-   are the only colour, and they are the same nine-pixel component the app
-   uses on every rail. */
-.ob-figure { margin-top: 32px; display: flex; flex-direction: column; }
-.ob-figure .ob-figure-label { font-size: var(--text-12); color: var(--text-subtle); }
-.ob-figure .ob-figure-val {
-  margin-top: 6px;
-  font-family: var(--font-num);
-  font-variant-numeric: tabular-nums;
-  font-size: var(--text-34, 34px);
-  line-height: 1.05;
-  font-weight: var(--w-title);
-  letter-spacing: -0.02em;
-  color: var(--text-strong);
-}
-.ob-figure .ob-figure-sub {
-  margin-top: 8px;
-  font-size: var(--text-13);
-  color: var(--text-subtle);
-  line-height: 1.5;
-}
-
-.ob-points { margin-top: 32px; display: flex; flex-direction: column; gap: 16px; }
-.ob-point { display: flex; gap: 12px; align-items: flex-start; }
-.ob-point .icon { color: var(--text-subtle); flex: none; margin-top: 2px; }
-.ob-point .pt-title { display: block; font-size: var(--text-13); font-weight: var(--w-medium); color: var(--text-strong); }
-/* a sentence a prospect reads, so 13px. 12px is labels, dates and metadata. */
-.ob-point .pt-sub { display: block; font-size: var(--text-13); color: var(--text-subtle); line-height: 1.5; margin-top: 2px; }
+/* ————— the front door ————— */
+/* One statement, one action. The title takes the 34px step so the door
+   reads as a door and not as another form step. */
+.ob-landing, .bare-sheet.ob-landing { padding-top: 44px; padding-bottom: 44px; }
+.ob-landing .ob-title { font-size: var(--text-34, 34px); }
+.ob-landing .ob-cta-row { margin-top: 32px; }
 
 /* live password rules — dot turns accent as each rule passes */
 .ob-rules {
@@ -80,7 +62,7 @@
 .ob-rules li.ok::before { background: var(--accent); }
 
 /* recovery codes — shown once, mono, data moment */
-.ob-codes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; }
+.ob-codes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 4px; }
 .ob-codes code {
   font-family: var(--font-mono); font-size: var(--text-12); letter-spacing: 0.02em;
   color: var(--text-default); background: var(--surface-2);
@@ -95,8 +77,7 @@
 }
 .ob-qr svg { display: block; width: 100%; height: 100%; }
 
-/* acknowledgment row */
-/* the acknowledgment is a sentence the client is agreeing to, so 13px */
+/* acknowledgment row — a sentence the client is agreeing to, so 13px */
 .ob-ack {
   display: flex; align-items: flex-start; gap: 10px; margin-top: 16px;
   font-size: var(--text-13); color: var(--text-subtle); line-height: 1.5; cursor: pointer;
@@ -104,27 +85,31 @@
 .ob-ack input { margin: 1px 0 0; accent-color: var(--ink); flex: none; }
 .ob-ack.ob-ack-inline { margin: 0; justify-content: center; }
 
-/* one-decision choice rows: tap to decide and advance.
-   Borderless, like .option-row: these were the only visible lines in the
-   public zone's content area, and one job does not get two designs. */
-.ob-choices { display: flex; flex-direction: column; gap: 8px; }
+/* one-decision choice rows: tap to decide and advance. Borderless, like
+   .option-row. The label is the whole choice. */
+.ob-choices { display: flex; flex-direction: column; gap: 2px; }
 .ob-choice {
   display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
-  padding: 13px 16px; border-radius: var(--r-card);
-  font-size: var(--text-13); color: var(--text-default);
+  padding: 13px 14px; border-radius: var(--r-card);
+  font-size: var(--text-13); color: var(--text-strong);
   transition: background var(--dur-1) var(--ease), box-shadow var(--dur-1) var(--ease);
 }
 .ob-choice:hover { background: var(--bg-hover); transition: none; }
-.ob-choice .icon.chev { margin-left: auto; color: var(--text-faint); }
-.ob-choice > .icon:first-child { color: var(--text-faint); flex: none; }
-.ob-choice .oc-body { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.ob-choice .oc-name { color: var(--text-strong); }
-.ob-choice .oc-sub { font-size: var(--text-13); color: var(--text-subtle); line-height: 1.45; }
+.ob-choice .oc-name { min-width: 0; }
+.ob-choice .icon.chev { margin-left: auto; color: var(--text-faint); flex: none; }
 /* the choice you already made, seen on the way back. It takes the app's
    selection vocabulary: bg-selected plus the anchored 2px ink bar, never a
    new hue. */
 .ob-choice.sel { background: var(--bg-selected); box-shadow: inset 2px 0 0 var(--ink); }
 .ob-choice.sel .icon.chev { color: var(--text-subtle); }
+
+/* ————— rows that open the drawer (reviewer comments, the decision) —————
+   .option-row is the shared row; these only stack it and clip its text. */
+.ob-rows { display: flex; flex-direction: column; gap: 2px; }
+.ob-row { padding: 10px 12px; }
+.ob-row .ob-row-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; text-align: left; }
+.ob-row .opt-name { font-size: var(--text-13); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ob-row .opt-detail { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* quiet demo affordances — restraint, never dashed shouting panels */
 .ob-demo { margin: 18px auto 0; max-width: 480px; text-align: center; }
@@ -134,21 +119,26 @@
 
 /* ————— status hub ————— */
 
-.ob-hub, .bare-sheet.ob-hub { max-width: 600px; }
-.hub-eyebrow { margin-bottom: 12px; }
-.hub-note { margin-bottom: 20px; }
+.ob-hub, .bare-sheet.ob-hub { max-width: 520px; }
 
-/* the completion mark's host, under the line that states your status. It
-   holds the hairline's exact 9px (8px offset + 1px rule) at all times, so
-   approval marks itself without nudging the copy. The 1px below keeps the
-   title-to-subtitle gap at the same 10px every other screen uses. */
+/* the completion mark's host, under the title. It holds the hairline's
+   exact 9px (8px offset + 1px rule) at all times, so approval marks itself
+   without nudging anything under it. */
 .hub-settle { height: 9px; }
-.hub-settle + .ob-sub { margin-top: 1px; }
+.hub-stale { margin-top: 4px; }
+.hub-timeline { margin-top: 16px; }
+.hub-rows { margin-top: 20px; }
+/* the deposit sheet groups its rows by currency: the swatch and code, once */
+.hub-dep-cur { font-size: var(--text-12); color: var(--text-subtle); margin-bottom: 2px; }
 
-/* the journey spine, which now has a spine: a hairline in the gap between
-   each stage dot, aligned to the dots. A lifecycle line is data, which is
-   why UI.timeline earns a vertical rule and this earns a horizontal one.
-   Equal columns, so the three dots line up and the line lands on them. */
+/* ————— kept for ib-onboard.js only —————
+   The IB journey screen (not this owner's file) still renders the old
+   three-stage spine, the eyebrow and the pinned comment card. The client
+   hub no longer uses any of these. They stay so that screen does not break;
+   the comment card has lost its warning tint (a hosted surface, like every
+   other object). Delete this block when ib-onboard.js adopts rows + drawer. */
+.hub-eyebrow { margin-bottom: 12px; }
+.hub-settle + .ob-sub { margin-top: 1px; }
 .hub-spine {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -159,31 +149,28 @@
 .hub-spine .sp:not(:last-child)::after {
   content: "";
   position: absolute;
-  top: 9px; left: 100%; width: 24px; height: 1px;   /* the dot's centre line */
+  top: 9px; left: 100%; width: 24px; height: 1px;
   background: var(--border-faint);
 }
-.hub-spine .sp-sub { display: block; font-size: var(--text-12); color: var(--text-faint); margin-top: 3px; padding-left: 13px; }
 @media (max-width: 560px) {
   .hub-spine { grid-template-columns: 1fr; gap: 10px; }
   .hub-spine .sp:not(:last-child)::after { display: none; }
 }
-
-/* reviewer comment — pinned, waiting-on-you volume */
 .ob-comment {
-  background: var(--warning-tint); border-radius: var(--r-card);
+  background: var(--surface-2); border-radius: var(--r-card);
   padding: 12px 14px; margin-top: 12px;
   font-size: var(--text-13); line-height: 1.55; color: var(--text-default);
 }
 .ob-comment .cw { font-size: var(--text-12); font-weight: var(--w-medium); color: var(--text-subtle); margin-bottom: 4px; }
 
-.ob-list { margin: 10px 0 0; padding-left: 18px; font-size: var(--text-13); color: var(--text-subtle); line-height: 1.8; }
-
 /* ————— KYC wizard ————— */
 
 .wiz-grid { display: grid; grid-template-columns: 216px 1fr; gap: 32px; align-items: start; }
 @media (max-width: 820px) { .wiz-grid { grid-template-columns: 1fr; gap: 20px; } }
-.wiz-note { margin-bottom: 16px; }
-.wiz-submit { display: block; }   /* so the settle hairline sweeps under the button, not inside it */
+/* the didn't-save line: a status and a verb, nothing tinted */
+.wiz-note { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.wiz-submit { display: block; margin-top: 24px; }   /* so the settle hairline sweeps under the button, not inside it */
+.wiz-saved { font-size: var(--text-12); color: var(--text-faint); }
 
 .wiz-spine { display: flex; flex-direction: column; gap: 2px; }
 .wiz-step {
@@ -209,25 +196,20 @@
    page-level one, so it takes the smaller padding */
 .wiz-body .empty { padding: 36px 0; }
 
-/* honest uploads — progress, type enforcement, rejectable */
+/* honest uploads — progress, type enforcement, rejectable. The box is a
+   hosted warm-paper surface (an object you act on), and it stays that
+   surface in every state: done is a 6px positive dot beside the file name,
+   rejected is the negative hue on the text, which is the one place the
+   law lets text colour. No tint washes the box in any state. */
 .up-box {
   display: flex; align-items: center; gap: 12px;
   background: var(--surface-2); border-radius: var(--r-card);
   padding: 10px 12px; min-height: 44px;
 }
-/* the upload's own sentence, including the rejection reason and what to do
-   next, so 13px */
 .up-box .up-meta { flex: 1; min-width: 0; font-size: var(--text-13); color: var(--text-subtle); line-height: 1.45; overflow-wrap: anywhere; }
-.up-box .up-meta strong { color: var(--text-default); font-weight: var(--w-medium); }
 .up-box .up-bar { flex: 0 0 90px; height: 3px; border-radius: 999px; background: var(--border); overflow: hidden; display: none; }
 .up-box .up-bar.on { display: block; }
 .up-box .up-bar i { display: block; height: 100%; width: 0; background: var(--ink); border-radius: 999px; transition: width 90ms var(--ease); }
-/* a completed upload used to wash the whole box in accent tint, and a
-   five-field step showed five of them at once. The confirmation is now a
-   6px accent dot beside the filename: the file name carries the rest, and
-   the step keeps its one saturated moment for something that deserves it.
-   A done box therefore keeps the base surface: there is no rule here for
-   the background because there is no longer a difference. */
 .up-box.up-done .up-meta { color: var(--text-default); display: flex; align-items: baseline; gap: 8px; }
 .up-box.up-done .up-meta::before {
   content: "";
@@ -235,34 +217,31 @@
   background: var(--st-positive); flex: none;
   transform: translateY(-1px);
 }
-.up-box.up-err { background: var(--negative-tint); }
 .up-box.up-err .up-meta { color: var(--negative); }
-.up-box.up-err .up-meta strong { color: var(--negative); }
 .up-box .btn { flex: none; }
 .up-fb { display: flex; gap: 10px; }
 .up-fb > div { flex: 1; min-width: 0; }
 .up-fb .up-side { font-size: var(--text-12); color: var(--text-faint); margin-bottom: 4px; }
 @media (max-width: 640px) { .up-fb { flex-direction: column; } }
 
-/* leadership person block */
+/* leadership person block — an object, so a hosted surface */
 .lead-card { background: var(--surface-2); border-radius: var(--r-card); padding: 16px; margin-top: 12px; }
 .lead-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
 .lead-head h4 { font-size: var(--text-13); font-weight: var(--w-medium); }
 .lead-head .link { margin-left: auto; }
-/* a destructive link. The audit asks for this as a shared .link-danger in
-   app.css; until that lands it is scoped here so it can never collide. */
 .lead-head .link-danger { color: var(--negative); }
 .field.field-own { flex: 0 0 130px; }
 .field.field-flush { margin-bottom: 0; }
-.lead-total { display: flex; align-items: center; gap: 14px; margin-top: 14px; font-size: var(--text-12); color: var(--text-subtle); }
+.lead-foot { display: flex; align-items: center; gap: 14px; margin-top: 14px; font-size: var(--text-12); color: var(--text-subtle); flex-wrap: wrap; }
+.lead-foot strong { color: var(--text-default); }
 /* an ownership total over 100 is a failure, and failure is the one thing
    the law lets colour the text */
-.lead-total.over strong { color: var(--negative); }
+.lead-foot.over strong { color: var(--negative); }
 
 /* the review moment */
 .rev-group { margin-top: 24px; }
 .rev-head {
-  display: flex; align-items: center; gap: 8px;
+  display: flex; align-items: center; gap: 10px;
   font-size: var(--text-13); font-weight: var(--w-medium); color: var(--text-strong);
   margin-bottom: 4px;
 }
@@ -270,4 +249,31 @@
 /* a step you can't edit says so quietly, as text, rather than as a link
    at 45% opacity pretending to be disabled */
 .rev-head .rev-ro { margin-left: auto; font-size: var(--text-12); font-weight: var(--w-body); color: var(--text-faint); }
-.rev-note { margin: 24px 0 16px; }
+
+/* ————— phone layer (≤600px) —————
+   The sheet loses its desk padding, the wizard spine becomes a strip you
+   scroll sideways above the form, side-by-side fields stack, and the CTA
+   row wraps so no button is ever clipped. Drawers are already bottom
+   sheets here (app.css). */
+@media (max-width: 600px) {
+  .bare-sheet.ob-sheet { padding: 24px 20px; margin-top: 16px; }
+  .ob-landing, .bare-sheet.ob-landing { padding-top: 36px; padding-bottom: 36px; }
+  .ob-landing .ob-title { font-size: var(--text-30, 30px); }
+  .ob-title { font-size: 26px; }
+
+  .wiz-spine {
+    flex-direction: row; gap: 4px;
+    overflow-x: auto; scrollbar-width: none;
+    margin: 0 -8px; padding: 0 8px 4px;
+  }
+  .wiz-spine::-webkit-scrollbar { display: none; }
+  .wiz-step { width: auto; flex: none; padding: 6px 10px; }
+  .wiz-step.cur { box-shadow: none; }
+  .wiz-lock { display: none; }   /* the step's dimming carries read-only here */
+
+  .field-row { flex-direction: column; gap: 0; }
+  .field.field-own { flex: none; }
+  .lead-card { padding: 14px; }
+
+  .ob-cta-row .btn-primary { flex: 1 1 auto; }
+}

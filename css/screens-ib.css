@@ -1,55 +1,50 @@
 /* ————————————————————————————————————————————————
    Fasset Prime — IB portal + IB onboarding screen styles.
-   Namespaced: .ib-* (portal) · .ibc-* (client drawer) ·
-   .ibj-* (journey) · .ibw-* (wizard drawer).
+   Namespaced: .ib-* (portal) · .ibj-* (journey) · .ibw-* (wizard drawer).
    Everything else comes from the foundation (app.css) and, for the
    journey furniture, the shared .ob- and .hub- grammar — one journey
-   language across the product, deliberately not forked.
+   language across the product, deliberately not forked. The trade
+   details drawer reuses the shared .txd-* grammar from screens-trade.css.
    ———————————————————————————————————————————————— */
 
-/* — how you're paid: open typography, three facts, no boxes — */
-.ib-how {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 20px 32px;
-}
-.ib-how .ih-name { font-size: var(--text-14); font-weight: var(--w-medium); color: var(--text-strong); letter-spacing: -0.01em; }
-.ib-how .ih-desc { font-size: var(--text-13); color: var(--text-subtle); line-height: 1.5; margin-top: 4px; }
-@media (max-width: 860px) { .ib-how { grid-template-columns: 1fr; } }
+/* — overview strip: four open figures, not five. The foundation strip
+     is a five-track grid; the phone layer in app.css collapses it to one
+     column at 600px and this override must collapse the same way. — */
+.stat-strip.ib-strip { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 900px) { .stat-strip.ib-strip { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px) { .stat-strip.ib-strip { grid-template-columns: 1fr; } }
 
-/* — client drawer: two quiet figures above the activity table — */
-.ibc-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 24px; margin: 6px 0 22px; }
-.ibc-stats .cs-label { font-size: var(--text-12); color: var(--text-subtle); }
-.ibc-stats .cs-val {
-  font-size: var(--text-16); font-weight: var(--w-medium); letter-spacing: -0.01em;
-  margin-top: 3px; font-variant-numeric: tabular-nums; color: var(--text-strong);
-}
+/* — identity cell: name over one line of fact, inside a 56px row — */
+.ib-stack { display: flex; flex-direction: column; min-width: 0; }
+.ib-stack .name, .ib-stack .desc { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ib-stack .name { color: var(--text-default); }
+.ib-stack .desc { color: var(--text-subtle); font-size: var(--text-12); }
 
-/* — journey step list on the state card — */
-.ibj-steps { margin-top: 24px; display: flex; flex-direction: column; gap: 14px; text-align: left; }
-.ibj-steps .st-sub { display: block; font-size: var(--text-12); color: var(--text-faint); margin-top: 2px; padding-left: 13px; }
+/* — the three payout facts on the page: a def-group reads as a pair of
+     columns, so it does not stretch across 1040px — */
+.ib-terms { max-width: 440px; }
 
-/* — wizard: the regulatory-status choice — */
+/* — data moment inside a drawer (the IBAN) — */
+.ib-mono { font-family: var(--font-mono); font-size: var(--text-12); }
+
+/* — journey step list on the state card: a dot and a word each — */
+.ibj-steps { margin-top: 24px; display: flex; flex-direction: column; gap: 12px; text-align: left; }
+
+/* — wizard: the payout-account choice — */
 .ibw-choice {
-  display: flex; align-items: flex-start; gap: 10px; width: 100%; text-align: left;
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
   padding: 12px 14px; margin-top: 8px; border: none; border-radius: var(--r-card);
   background: var(--surface-2); cursor: pointer; font: inherit; color: inherit;
   transition: background var(--dur-2) var(--ease);
 }
 .ibw-choice:hover { background: var(--bg-hover); transition: none; }
 .ibw-choice.sel { background: var(--bg-selected); box-shadow: inset 2px 0 0 var(--ink); }
-.ibw-choice .wc-name { display: block; font-size: var(--text-13); font-weight: var(--w-medium); color: var(--text-strong); }
-.ibw-choice .wc-sub { display: block; font-size: var(--text-12); color: var(--text-subtle); line-height: 1.45; margin-top: 2px; }
+.ibw-choice .wc-name { display: block; font-size: var(--text-13); color: var(--text-strong); }
 
-/* — wizard: attached-document row and the agreement summary — */
+/* — wizard: attached-document row and the agreement acknowledgment — */
 .ibw-attach { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
-.ibw-terms {
-  margin-top: 4px; padding: 12px 14px; border-radius: var(--r-card);
-  background: var(--surface-2); font-size: var(--text-13); color: var(--text-subtle); line-height: 1.7;
-}
-.ibw-terms strong { color: var(--text-default); font-weight: var(--w-medium); }
 .ibw-ack {
-  display: flex; gap: 9px; align-items: flex-start; margin-top: 12px;
+  display: flex; gap: 9px; align-items: flex-start; margin-top: 16px;
   font-size: var(--text-13); color: var(--text-subtle); line-height: 1.5; cursor: pointer;
 }
 .ibw-ack input { margin: 2px 0 0; accent-color: var(--ink); flex: none; }

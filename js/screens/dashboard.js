@@ -330,7 +330,7 @@
     title: "Dashboard",
     actions: function () {
       if (Data.state.role === "viewer") return "";
-      return '<button class="btn btn-primary" data-go-trade type="button">Get a quote</button>';
+      return '<button class="btn btn-primary" data-go-trade type="button">Get quote</button>';
     },
     zone: "app",
     render: render,

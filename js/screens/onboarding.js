@@ -3,10 +3,11 @@
    Ported from prime-v2.standalone.html.
 
    The grammar: ONE decision per screen. Each step is a centered
-   single-column moment — the question as the 30px title, one
-   reassuring gray subtitle, the minimal controls, one ink CTA, and a
-   quiet "Account · Verify · Secure · Qualify" text progress. No
-   multi-field walls.
+   single-column moment — the question as the 30px title, the minimal
+   controls, one ink CTA, and a quiet "Account · Verify · Secure ·
+   Qualify" text progress. No multi-field walls, no sentence under the
+   title unless it is a fact the user needs right now (where a link
+   was sent, that a choice is permanent).
 
    Steps: landing → email → password → verify (resend cooldown) →
    MFA enrollment (QR stand-in, confirm code) → recovery codes shown
@@ -29,13 +30,14 @@
    .screen so the 40ms stagger applies.
    Data API: Data.setJourney · Data.state.user · UI.recoveryCodes.
 
-   Wave-3: the landing sheet carries one typeset figure (the reference
-   rate, per-digit assembled, labelled illustrative) because a page
-   selling firm pricing that shows no price is the flattest screen in
-   the app. And a step no longer replays its own entrance to show a
-   validation error or a prefill: errors, the rate-limit note and the
-   demo prefills patch in place. Only moving between steps repaints the
-   page, because there the whole screen genuinely changed.
+   2026-09-04 (Hamis taste pass): the landing is a front door, not a
+   pitch. The lockup is in the zone header; the sheet is one headline,
+   one ink action, Log in as the quiet secondary. The reference-rate
+   specimen, the three feature points, the welcome line and the legal
+   footnote are gone. Every step lost its subtitle unless the subtitle
+   was a fact; choice rows lost their icons and their explanations.
+   Errors, the rate-limit note and the demo prefills still patch in
+   place; only moving between steps repaints the page.
    ———————————————————————————————————————————————— */
 (function () {
   "use strict";
@@ -76,17 +78,6 @@
     App.rerender();
   }
 
-  // ————— local icons (16px grid, 1.5px stroke, round caps) —————
-  var LP = {
-    person: '<circle cx="8" cy="5" r="2.75"/><path d="M2.75 14.25a5.25 5.25 0 0 1 10.5 0"/>',
-    mail: '<rect x="1.75" y="3.25" width="12.5" height="9.5" rx="1.5"/><path d="m2.5 4.5 5.5 4.25L13.5 4.5"/>'
-  };
-  function li(name, size, cls) {
-    return '<svg class="icon ' + (cls || "") + '" width="' + (size || 16) + '" height="' + (size || 16) +
-      '" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">' +
-      LP[name] + "</svg>";
-  }
-
   // ————— pieces of the grammar —————
 
   var SPINE = ["Account", "Verify", "Secure", "Qualify"];
@@ -97,9 +88,11 @@
     }).join('<span class="sep">·</span>') + "</div>";
   }
 
-  function head(title, sub) {
-    return '<h1 class="ob-title">' + title + "</h1>" +
-      (sub ? '<p class="ob-sub">' + sub + "</p>" : "");
+  // title is plain text; sub is html because the one fact it ever
+  // carries (where the link went) wraps an escaped email in <strong>
+  function head(title, subHtml) {
+    return '<h1 class="ob-title">' + UI.esc(title) + "</h1>" +
+      (subHtml ? '<p class="ob-sub">' + subHtml + "</p>" : "");
   }
 
   function cta(label, id, opts) {
@@ -112,9 +105,11 @@
   }
 
   function sheet(inner, cls) {
-    return '<div class="bare-sheet ' + (cls || "") + '">' + inner + "</div>";
+    return '<div class="bare-sheet ob-sheet ' + (cls || "") + '">' + inner + "</div>";
   }
 
+  // prototype furniture: everything demo lives inside .ob-demo, which the
+  // Demo chip shows and hides (app.css). The product never shows these.
   function demo(buttons, caption, wide) {
     return '<div class="ob-demo' + (wide ? " wide" : "") + '">' +
       (buttons ? '<div class="ob-demo-row">' + buttons + "</div>" : "") +
@@ -125,12 +120,12 @@
     return '<button class="db-btn' + (armed ? " armed" : "") + '" id="' + id + '" type="button">' + UI.esc(label) + "</button>";
   }
 
+  // one-decision rows: the label is the whole choice. No icon, no
+  // explanation under it; if a choice needed one, the label was wrong.
   function choices(items) {
     return '<div class="ob-choices">' + items.map(function (it) {
       return '<button class="ob-choice' + (it.sel ? " sel" : "") + '" data-choice="' + UI.esc(it.v) + '" type="button">' +
-        (it.icon || "") +
-        '<span class="oc-body"><span class="oc-name">' + UI.esc(it.label) + "</span>" +
-        (it.sub ? '<span class="oc-sub">' + UI.esc(it.sub) + "</span>" : "") + "</span>" +
+        '<span class="oc-name">' + UI.esc(it.label) + "</span>" +
         icon("chevronRight", 14, "chev") + "</button>";
     }).join("") + "</div>";
   }
@@ -161,37 +156,15 @@
 
   // ————— steps —————
 
-  // the one figure in the public zone. It is the reference rate, not a
-  // quote: labelled illustrative, priced from Data.REF, and the lock
-  // length comes from Data.LOCK_SECS so it can never drift from the
-  // product. Two currency swatches, no fill, no chart: the point is that a
-  // price exists and holds still.
-  function specimen() {
-    var rate = Data.REF["USDT/AED"];
-    return '<div class="ob-figure">' +
-      '<span class="ob-figure-label">A firm price, right now</span>' +
-      '<span class="ob-figure-val">' + UI.digits(rate.toFixed(4), { stagger: 18 }) + "</span>" +
-      '<span class="ob-figure-sub">' + UI.ccy("AED") + " per " + UI.ccy("USDT") +
-      " · illustrative reference rate. Yours holds for " +
-      Data.LOCK_SECS + " seconds while you decide.</span>" +
-      "</div>";
-  }
-
+  // the front door. One statement, one action, log in as the quiet
+  // secondary. The lockup is already in the zone header above.
   function landing(el) {
-    var points = [
-      { i: icon("clock", 16), t: "Firm quotes, not indications", s: "A real rate for your exact size, locked while you decide." },
-      { i: icon("activity", 16), t: "Money you can follow", s: "See exactly where every deposit and withdrawal is, at every step." },
-      { i: icon("shieldCheck", 16), t: "Onboarding you can track", s: "Your application's status is always visible, reviewed by a human." }
-    ];
     el.insertAdjacentHTML("beforeend", sheet(
-      head("Institutional OTC, without the back-and-forth.",
-        "Onboard without a salesperson, trade on a price that holds, and always know where your money is.") +
-      specimen() +
-      '<div class="ob-points">' + points.map(function (p) {
-        return '<div class="ob-point">' + p.i + '<span><span class="pt-title">' + p.t + '</span><span class="pt-sub">' + p.s + "</span></span></div>";
-      }).join("") + "</div>" +
-      cta("Create your account", "obStart", { back: "login", backLabel: "I already have an account" }) +
-      '<p class="ob-legal">Email and password only. No invitation code.</p>',
+      '<h1 class="ob-title">Trade USDT at a firm price, from your own accounts.</h1>' +
+      '<div class="ob-cta-row">' +
+        '<button class="btn btn-primary btn-lg" id="obStart" type="button">Open an account</button>' +
+        '<button class="btn btn-ghost" data-back="login" type="button">Log in</button>' +
+      "</div>",
       "ob-landing"));
     el.querySelector("#obStart").addEventListener("click", function () { go("email"); });
   }
@@ -206,20 +179,20 @@
   function stepEmail(el) {
     el.insertAdjacentHTML("beforeend", sheet(
       stepsLine(0) +
-      head("What’s your work email?", "Your account takes about two minutes.") +
+      head("Open an account.") +
       '<div class="ob-body">' +
       '<div class="field"><label for="obName">Full name</label>' +
-      '<input id="obName" class="input" placeholder="e.g. Reem Al Suwaidi" autocomplete="off" value="' + UI.esc(L.name) + '"></div>' +
+      '<input id="obName" class="input" autocomplete="off" value="' + UI.esc(L.name) + '"></div>' +
       '<div class="field"><label for="obEmail">Work email</label>' +
-      '<input id="obEmail" class="input' + (L.emailErr ? " invalid" : "") + '" placeholder="you@company.com" autocomplete="off" value="' + UI.esc(L.email) + '">' +
+      '<input id="obEmail" class="input' + (L.emailErr ? " invalid" : "") + '" autocomplete="off" value="' + UI.esc(L.email) + '">' +
       '<div class="hint err' + (L.emailErr ? "" : " hide") + '" id="obEmailErr">' + emailErrHtml() +
       "</div></div>" +
       "</div>" +
       cta("Continue", "obNext", { back: "landing" })));
 
     el.insertAdjacentHTML("beforeend", demo(
-      dbtn("obFill", "Fill sample details") + dbtn("obDup", "Prefill an existing email (duplicate)"),
-      "Signup is open, rate limiting keeps it safe."));
+      dbtn("obFill", "Fill sample details") + dbtn("obDup", "Prefill an existing email"),
+      "Demo · signup."));
 
     var nameI = el.querySelector("#obName"), emailI = el.querySelector("#obEmail");
     var err = el.querySelector("#obEmailErr");
@@ -247,7 +220,7 @@
       L.name = nameI.value.trim(); L.email = emailI.value.trim();
       if (!L.name) { nameI.classList.add("invalid"); nameI.focus(); return; }
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(L.email)) {
-        L.emailErr = "That doesn’t look like an email address we can send to.";
+        L.emailErr = "That doesn’t look like an email address.";
         L.emailDup = false;
         showErr(); return;
       }
@@ -273,7 +246,7 @@
     });
     el.querySelector("#obDup").addEventListener("click", function () {
       prefill(L.name || "Reem Al Suwaidi", Data.state.user.email);
-      UI.toast("Prefilled the seeded account’s email. Continue to see the duplicate state.");
+      UI.toast("Prefilled the seeded account’s email. Continue to see the duplicate state.", "note");
     });
   }
 
@@ -288,28 +261,28 @@
   function stepPassword(el) {
     el.insertAdjacentHTML("beforeend", sheet(
       stepsLine(0) +
-      head("Choose a password.", "") +
+      head("Choose a password.") +
       '<div class="ob-body">' +
       '<div class="field"><label for="obPass">Password</label>' +
       '<input id="obPass" class="input" type="password" autocomplete="off" value="' + UI.esc(L.pass) + '">' +
       '<ul class="ob-rules" id="obRules">' + RULES.map(function (r) {
         return '<li data-rule="' + r.k + '"' + (r.test(L.pass) ? ' class="ok"' : "") + ">" + r.label + "</li>";
       }).join("") + "</ul></div>" +
-      '<div class="note note-error' + (L.rateErr ? "" : " hide") + '" id="obRate">Too many sign-ups from this network. Try again in about 15 minutes, or write to onboarding@fasset.com.</div>' +
+      '<div class="hint err' + (L.rateErr ? "" : " hide") + '" id="obRate">Too many sign-ups from this network. Try again in 15 minutes.</div>' +
       "</div>" +
       cta("Create account", "obCreate", { back: "email", disabled: !passOk(L.pass) }) +
-      '<p class="ob-legal">By signing up you agree to the Fasset Prime terms.</p>'));
+      '<p class="ob-legal">By creating an account you agree to the Fasset Prime terms.</p>'));
 
     el.insertAdjacentHTML("beforeend", demo(
-      dbtn("obFillPass", "Fill a valid password") + dbtn("obArmRate", "Arm rate-limit on next submit", L.armRate),
-      "Arm it to see the rate-limit failure state."));
+      dbtn("obFillPass", "Fill a valid password") + dbtn("obArmRate", "Arm: rate limit on next submit", L.armRate),
+      "Demo · failure states."));
 
     var pass = el.querySelector("#obPass"), btn = el.querySelector("#obCreate");
     var armBtn = el.querySelector("#obArmRate");
     pass.focus();
 
-    // the four rule dots lighting up as you type is the best micro-interaction
-    // in the app. It runs on the live element, never through a re-render.
+    // the four rule dots lighting up as you type run on the live element,
+    // never through a re-render
     function syncRules() {
       L.pass = pass.value;
       el.querySelectorAll("#obRules li").forEach(function (liEl) {
@@ -342,7 +315,7 @@
     armBtn.addEventListener("click", function () {
       L.armRate = !L.armRate;
       armBtn.classList.toggle("armed", L.armRate);
-      if (L.armRate) UI.toast("Armed. The next submit hits the rate limit.");
+      if (L.armRate) UI.toast("Armed. The next submit hits the rate limit.", "note");
     });
   }
 
@@ -352,15 +325,12 @@
       stepsLine(1) +
       head("Check your inbox.",
         "We sent a verification link to <strong>" + UI.esc(mail) + "</strong>.") +
-      '<div class="ob-body">' +
-      '<div class="note note-positive' + (L.resent ? "" : " hide") + '" id="obResent">Verification email re-sent.</div>' +
       '<div class="ob-cta-row"><button class="btn btn-secondary" id="obResend" type="button">Resend email</button>' +
-      '<span class="freshline" id="obCool"></span></div>' +
-      "</div>"));
+      '<span class="freshline" id="obCool"></span></div>'));
 
     el.insertAdjacentHTML("beforeend", demo(
       dbtn("obOpenLink", "Open the verification link"),
-      "Stands in for clicking the emailed link."));
+      "Demo · stands in for the emailed link."));
 
     var resend = el.querySelector("#obResend"), cool = el.querySelector("#obCool");
 
@@ -371,7 +341,7 @@
         clearInterval(cooldownIv); cooldownIv = null;
         cool.textContent = ""; resend.disabled = false;
       } else {
-        cool.textContent = "Resend again in " + left + " s";
+        cool.textContent = "Resend in " + left + " s";
         resend.disabled = true;
       }
     }
@@ -380,7 +350,7 @@
     resend.addEventListener("click", function () {
       if (Date.now() < L.resendUntil) return;
       L.resent = true;
-      el.querySelector("#obResent").classList.remove("hide");
+      UI.toast("Verification email sent again.");
       L.resendUntil = Date.now() + 30000;
       tick();
       clearInterval(cooldownIv);
@@ -400,13 +370,13 @@
       '<div class="ob-body">' +
       '<div class="ob-qr">' + qrSvg() + "</div>" +
       UI.copyRow("Setup key", SETUP_KEY, { mono: true }) +
-      '<div class="field mt-16"><label for="obCode">Confirm with a code from the app</label>' +
+      '<div class="field mt-16"><label for="obCode">Code from the app</label>' +
       '<input id="obCode" class="input input-code" inputmode="numeric" maxlength="6" placeholder="······" autocomplete="off">' +
       '<div class="hint err' + (L.codeErr ? "" : " hide") + '" id="obCodeErr">That code isn’t right. Check the app and try again.</div></div>' +
       "</div>" +
-      cta("Confirm code", "obConfirm", { back: "verify" })));
+      cta("Confirm", "obConfirm", { back: "verify" })));
 
-    el.insertAdjacentHTML("beforeend", demo("", "Demo authenticator code 123456."));
+    el.insertAdjacentHTML("beforeend", demo("", "Demo · authenticator code 123456."));
 
     var code = el.querySelector("#obCode");
     code.focus();
@@ -418,6 +388,7 @@
         return;
       }
       L.codeErr = false; L.ack = false;
+      UI.toast("Authenticator confirmed.", "done");
       go("codes");
     }
     el.querySelector("#obConfirm").addEventListener("click", confirm);
@@ -427,12 +398,11 @@
   function stepCodes(el) {
     el.insertAdjacentHTML("beforeend", sheet(
       stepsLine(2) +
-      head("Save your recovery codes.", "Shown once. Each one works a single time if you lose your authenticator.") +
+      head("Save your recovery codes.", "Shown once.") +
       '<div class="ob-body">' +
-      '<div class="note note-positive">Authenticator confirmed.</div>' +
       '<div class="ob-codes">' + UI.recoveryCodes.map(function (c) { return "<code>" + UI.esc(c) + "</code>"; }).join("") + "</div>" +
       '<label class="ob-ack"><input type="checkbox" id="obAck"' + (L.ack ? " checked" : "") +
-      "><span>I’ve stored these somewhere safe. Fasset can’t show them again.</span></label>" +
+      "><span>I’ve saved these.</span></label>" +
       "</div>" +
       cta("Continue", "obCodesDone", { disabled: !L.ack })));
 
@@ -444,13 +414,13 @@
   function stepQualEntity(el) {
     el.insertAdjacentHTML("beforeend", sheet(
       stepsLine(3) +
-      head("Are you onboarding as an institution or an individual?",
-        "Three quick questions. Not a credit check.") +
+      head("Are you an institution or an individual?") +
       '<div class="ob-body">' +
       choices([
-        { v: "institution", label: "An institution", sub: "A company, fund or trust.", icon: icon("building", 16), sel: L.entity === "institution" && !!L.vol },
-        { v: "individual", label: "An individual", sub: "Yourself, in your own name.", icon: li("person", 16), sel: L.entity === "individual" && !!L.vol }
+        { v: "institution", label: "An institution", sel: L.entity === "institution" && !!L.vol },
+        { v: "individual", label: "An individual", sel: L.entity === "individual" && !!L.vol }
       ]) +
+      // the one consequence worth a sentence: this choice is permanent
       '<p class="hint">You can’t change this later without contacting us.</p>' +
       "</div>" +
       '<div class="ob-cta-row"><button class="link" data-back="landing" type="button">Back</button></div>'));
@@ -461,7 +431,7 @@
   function stepQualVolume(el) {
     el.insertAdjacentHTML("beforeend", sheet(
       stepsLine(3) +
-      head("What monthly volume do you expect?", "An estimate is fine, it doesn’t cap you.") +
+      head("What monthly volume do you expect?") +
       '<div class="ob-body">' + choices(VOLS.map(function (v) {
         return { v: v, label: v, sel: L.vol === v };
       })) + "</div>" +
@@ -473,18 +443,16 @@
   function stepQualJurisdiction(el) {
     el.insertAdjacentHTML("beforeend", sheet(
       stepsLine(3) +
-      head("Where do your funds come from?", "The jurisdiction the money is sent from.") +
-      '<div class="ob-body">' +
-      '<div class="note note-info">Last question.</div>' +
-      '<div class="mt-16">' + choices(JURS.map(function (v) {
+      head("Where will your funds be sent from?") +
+      '<div class="ob-body">' + choices(JURS.map(function (v) {
         return { v: v, label: v, sel: L.jur === v };
-      })) + "</div></div>" +
+      })) + "</div>" +
       '<div class="ob-cta-row"><button class="link" data-back="qual-volume" type="button">Back</button></div>'));
 
     el.insertAdjacentHTML("beforeend", demo(
       '<label class="ob-ack ob-ack-inline"><input type="checkbox" id="obPark"' + (L.armPark ? " checked" : "") +
-      "><span>Triage outcome: this application gets parked before onboarding opens</span></label>",
-      "Stands in for a compliance-team decision in Optimus."));
+      "><span>Triage parks this application before onboarding opens</span></label>",
+      "Demo · a compliance decision in Optimus."));
 
     el.querySelector("#obPark").addEventListener("change", function (e) { L.armPark = e.target.checked; });
 
@@ -492,7 +460,6 @@
       L.jur = v;
       if (L.armPark) {
         Data.setJourney({ entity: L.entity, review: "parked", comments: [] });
-        UI.toast("Triage parked this application before onboarding opened.");
         App.go("hub");
         return;
       }
@@ -503,14 +470,14 @@
 
   function stepLogin(el) {
     el.insertAdjacentHTML("beforeend", sheet(
-      head("Welcome back.", "Fasset Prime client portal.") +
+      head("Log in.") +
       '<div class="ob-body">' +
       '<div class="field"><label for="liEmail">Email</label>' +
       '<input id="liEmail" class="input" autocomplete="off" value="' + UI.esc(Data.state.user.email) + '"></div>' +
       '<div class="field"><label for="liPass">Password</label>' +
       '<input id="liPass" class="input" type="password" autocomplete="off" value="fifteencharacters"></div>' +
       "</div>" +
-      cta("Continue", "liGo", { back: "landing", backLabel: "Create an account" })));
+      cta("Continue", "liGo", { back: "landing", backLabel: "Open an account" })));
 
     el.querySelector("#liGo").addEventListener("click", function () { go("challenge"); });
     el.querySelector("#liPass").addEventListener("keydown", function (e) { if (e.key === "Enter") go("challenge"); });
@@ -518,7 +485,7 @@
 
   function stepChallenge(el) {
     el.insertAdjacentHTML("beforeend", sheet(
-      head("Enter your authenticator code.", "The 6-digit code from your app.") +
+      head("Enter the code from your authenticator.") +
       '<div class="ob-body">' +
       '<div class="field"><input id="mcCode" class="input input-code" inputmode="numeric" maxlength="6" placeholder="······" autocomplete="off">' +
       '<div class="hint err' + (L.codeErr ? "" : " hide") + '" id="mcErr">That code isn’t right. Check the app and try again.</div></div>' +
@@ -529,7 +496,7 @@
       '<div class="mt-12"><button class="link" id="mcRecLink" type="button">Use a recovery code instead</button></div>'));
 
     el.insertAdjacentHTML("beforeend", demo("",
-      "Demo code 123456, or a seeded recovery code like 9F3K-22LQ."));
+      "Demo · code 123456, or a seeded recovery code like 9F3K-22LQ."));
 
     var code = el.querySelector("#mcCode"), rec = el.querySelector("#mcRec");
     code.focus();
@@ -574,18 +541,16 @@
     // the zone header's right slot belongs to the screen. It is also the
     // entry sentinel: a fresh element means we arrived from another zone
     // (the demo bar's Landing jump), so the flow restarts at the top.
+    // It shows one fact, who you are, once that is known. Navigation
+    // (Log in, Open an account) lives in the sheet, not up here.
     var right = document.getElementById("bareRight");
     if (right && !right.getAttribute("data-ob-live")) {
       right.setAttribute("data-ob-live", "1");
       L.step = "landing";
     }
     if (right) {
-      right.innerHTML = L.step === "landing"
-        ? '<button class="link" data-back="login" type="button">Log in</button>'
-        : (L.email ? UI.esc(L.email) : '<button class="link" data-back="landing" type="button">Create an account</button>');
-      right.querySelectorAll("[data-back]").forEach(function (b) {
-        b.addEventListener("click", function () { go(b.getAttribute("data-back")); });
-      });
+      var signupStep = ["email", "password", "verify", "mfa", "codes", "qual-entity", "qual-volume", "qual-jurisdiction"].indexOf(L.step) >= 0;
+      right.textContent = signupStep && L.email ? L.email : "";
     }
 
     (STEPS[L.step] || landing)(el);
