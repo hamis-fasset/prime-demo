@@ -33,11 +33,13 @@
     return UI.statusDot("warning", "Awaiting funding");
   }
 
+  // status labels stand alone — no subtitles under timeline steps
+  // (Hamis 2026-09-03: "just the title, no description of what it means")
   function tradeTimeline(t) {
     if (t.state === "failed") {
       return [
         { label: "Initiated", state: "done", time: UI.fmtTs(t.stamps.placed || t.ts) },
-        { label: "Failed", sub: "the funding window ran out · nothing was taken", state: "failed" }
+        { label: "Failed", state: "failed" }
       ];
     }
     return [
@@ -81,13 +83,12 @@
     if (d.state === "failed") {
       return [
         { label: "Processing", state: "done", time: UI.fmtTs(d.ts) },
-        { label: "Failed", sub: "returned to the sending account", state: "failed" }
+        { label: "Failed", state: "failed" }
       ];
     }
     return [
-      { label: "Processing", sub: d.via === "bank" ? "your transfer reached your account" : "confirmed on-chain",
-        state: d.state === "credited" ? "done" : "active", time: UI.fmtTs(d.ts) },
-      { label: "Completed", sub: "in your available balance",
+      { label: "Processing", state: d.state === "credited" ? "done" : "active", time: UI.fmtTs(d.ts) },
+      { label: "Completed",
         state: d.state === "credited" ? "done" : "todo",
         time: d.crTs ? UI.fmtTs(d.crTs) : "" }
     ];
@@ -115,11 +116,11 @@
     if (w.state === "failed") {
       return [
         { label: "Processing", state: "done", time: UI.fmtTs(w.stamps.submitted || w.ts) },
-        { label: "Failed", sub: "the amount is back in your available balance", state: "failed" }
+        { label: "Failed", state: "failed" }
       ];
     }
     return [
-      { label: "Processing", sub: Data.windowCopy(),
+      { label: "Processing",
         state: w.state === "confirmed" ? "done" : "active",
         time: UI.fmtTs(w.stamps.submitted || w.ts) },
       { label: "Completed",

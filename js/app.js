@@ -44,7 +44,7 @@
     ]},
     { label: "Money", items: [
       { id: "trade", label: "Trade", icon: "trade", roles: ["admin", "trader"] },
-      { id: "withdraw", label: "Withdraw", icon: "move", roles: ["admin", "trader", "viewer"] },
+      { id: "balance", label: "Balances", icon: "move", roles: ["admin", "trader", "viewer"] },
       { id: "accounts", label: "Accounts", icon: "shieldCheck", roles: ["admin", "trader"] }
     ]},
     { label: "Manage", items: [
@@ -53,8 +53,9 @@
     ]}
   ];
 
-  // balance views are reachable from the dashboard, not the nav
-  var OFF_NAV = ["balance"];
+  // deposit and withdraw start inside a balance view (Hamis 2026-09-03), so
+  // Withdraw left the nav; the screen survives, reached from the balance CTA
+  var OFF_NAV = ["withdraw"];
 
   // The IB persona is one individual — no team, no roles. Items carry no
   // roles field and every linked screen is theirs.
@@ -157,9 +158,8 @@
         '<div class="main">' +
           '<div class="role-note hide" id="roleNote"></div>' +
           '<header class="topbar">' +
-            '<button class="search-affordance" id="searchBtn" type="button">' + icon("search", 14) + "<span>Search</span><kbd>⌘K</kbd></button>" +
+            "<span></span>" +
             '<div class="topbar-actions">' +
-              '<button class="icon-btn notif-btn" id="bellBtn" type="button" aria-label="Notifications">' + icon("bell", 16) + "</button>" +
               '<button class="icon-btn" id="themeBtn" type="button" aria-label="Theme">' + icon("moon", 16) + "</button>" +
             "</div>" +
           "</header>" +
@@ -171,15 +171,12 @@
     root.querySelectorAll("[data-nav]").forEach(function (b) {
       b.addEventListener("click", function () { App.go(b.getAttribute("data-nav")); });
     });
-    document.getElementById("bellBtn").addEventListener("click", openNotifications);
     document.getElementById("themeBtn").addEventListener("click", function () {
       var cur = document.documentElement.getAttribute("data-theme");
       var dark = cur ? cur === "dark"
         : window.matchMedia("(prefers-color-scheme: dark)").matches;
       App.setTheme(dark ? "light" : "dark");
     });
-    document.getElementById("searchBtn").addEventListener("click", openCommand);
-    refreshBell();
     refreshRoleNote();
   }
 
@@ -193,11 +190,6 @@
           '<span class="bh-right" id="bareRight"></span></header>') +
         '<div class="bare-body" id="screenHost"></div>' +
       "</div>";
-  }
-
-  function refreshBell() {
-    var bell = document.getElementById("bellBtn");
-    if (bell) bell.classList.toggle("has-unread", Data.unreadCount() > 0);
   }
 
   function refreshRoleNote() {
@@ -275,7 +267,6 @@
   // ————— data → view: default is a full re-render of the live screen —————
 
   Data.on(function (scope) {
-    refreshBell();
     if (scope === "prefs") { refreshNav(); refreshRoleNote(); }
     var def = screens[current];
     if (!def) return;
@@ -284,81 +275,8 @@
     renderScreen();
   });
 
-  // ————— notifications drawer —————
-
-  function openNotifications() {
-    var h = UI.drawer("Notifications", "", {
-      width: 420,
-      foot: '<button class="btn btn-secondary" id="ntAll" type="button">Mark all read</button>'
-    });
-    function list() {
-      var ns = Data.state.notifs;
-      h.body.innerHTML = ns.length ? ns.map(function (n) {
-        return '<button class="option-row" data-nt="' + n.id + '" type="button">' +
-          '<span class="status status-' + (n.read ? "neutral" : "positive") + '" style="flex:none;margin-top:2px"><span class="dot"></span></span>' +
-          '<span style="min-width:0;flex:1"><span class="opt-name" style="display:block;' + (n.read ? "" : "font-weight:var(--w-medium);color:var(--text-strong)") + '">' + UI.esc(n.title) + "</span>" +
-          '<span class="opt-detail" style="display:block;margin-top:2px">' + UI.esc(n.body) + "</span>" +
-          '<span class="opt-detail" style="display:block;margin-top:3px;color:var(--text-faint)">' + UI.esc(UI.fmtTs(n.ts)) + "</span></span></button>";
-      }).join("") : '<div class="empty">Nothing yet.</div>';
-      h.body.querySelectorAll("[data-nt]").forEach(function (b) {
-        b.addEventListener("click", function () {
-          var n = Data.state.notifs.filter(function (x) { return x.id === +b.getAttribute("data-nt"); })[0];
-          Data.markRead(n.id);
-          h.close();
-          if (n.target === "hub") App.go("hub");
-          else if (screens[n.target]) App.go(n.target);
-          else App.go("dashboard");
-        });
-      });
-    }
-    list();
-    h.el.querySelector("#ntAll").addEventListener("click", function () { Data.markAllRead(); list(); });
-  }
-  App.openNotifications = openNotifications;
-
-  // ————— command menu (⌘K) — reaches every destination —————
-
-  var cmdOpen = false;
-  function openCommand() {
-    if (cmdOpen) return;
-    cmdOpen = true;
-    var dests = [];
-    navSet().forEach(function (g) { g.items.forEach(function (it) {
-      if (!it.roles || it.roles.indexOf(Data.state.role) >= 0) dests.push(it);
-    }); });
-    var h = UI.drawer("Go to", '<div class="field"><input class="input" id="cmdInput" placeholder="Type a destination" autocomplete="off"></div><div id="cmdList"></div>', {
-      width: 420,
-      onClose: function () { cmdOpen = false; }
-    });
-    var input = h.el.querySelector("#cmdInput");
-    var listEl = h.el.querySelector("#cmdList");
-    function list() {
-      var q = (input.value || "").toLowerCase();
-      var hits = dests.filter(function (d) { return d.label.toLowerCase().indexOf(q) >= 0; });
-      listEl.innerHTML = hits.length ? hits.map(function (d) {
-        return '<button class="option-row" data-go="' + d.id + '" type="button">' + icon(d.icon, 14) +
-          '<span class="opt-name">' + UI.esc(d.label) + "</span>" + icon("chevronRight", 12, "chev") + "</button>";
-      }).join("") : '<div class="empty" style="padding:32px 0">No matches.</div>';
-      listEl.querySelectorAll("[data-go]").forEach(function (b) {
-        b.addEventListener("click", function () { h.close(); App.go(b.getAttribute("data-go")); });
-      });
-    }
-    input.addEventListener("input", list);
-    input.addEventListener("keydown", function (e) {
-      if (e.key === "Enter") {
-        var first = listEl.querySelector("[data-go]");
-        if (first) { h.close(); App.go(first.getAttribute("data-go")); }
-      }
-    });
-    list();
-    input.focus();
-  }
-  document.addEventListener("keydown", function (e) {
-    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-      e.preventDefault();
-      if (curZone === "app") openCommand();
-    }
-  });
+  // (Search and the notifications bell were cut 2026-09-03: pointless in a
+  //  six-destination portal. Toasts remain the one announcement surface.)
 
   // ————— demo layer (prototype furniture, not the product) —————
   // Hidden by default. The floating chip toggles body.demo-on, which reveals

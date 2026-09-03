@@ -298,14 +298,6 @@ button.stat-strip-cell:hover, a.stat-strip-cell:hover { background: var(--bg-hov
 }
 
 .tile-label { font-size: var(--text-12); color: var(--text-subtle); display: flex; align-items: center; gap: 6px; }
-/* one-line balance tile: swatch + typeset money, the code lives once */
-.tile-money {
-  display: flex; align-items: center; gap: 8px;
-  font-family: var(--font-num); font-size: 20px; font-weight: var(--w-medium);
-  color: var(--text-strong); line-height: 1.2;
-  font-variant-numeric: tabular-nums; letter-spacing: -0.01em;
-}
-.tile-money .cat i { margin-right: 0; }
 .tile-value {
   font-family: var(--font-num);
   font-size: 20px;
@@ -748,6 +740,15 @@ button.open-block:hover { background: var(--bg-hover); transition: none; }
 .seg-mini .seg-btn { padding: 2px 9px; font-size: 11px; }
 .bal-label .seg-mini { margin-left: 10px; }
 
+/* dark: unselected toggle text read murky (a greenish mid-gray on a dark
+   chip). Quiet, neutral, clearly legible instead. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .seg-btn:not(.active),
+  :root:not([data-theme="light"]) .bal-pill:not(.active) { color: oklch(0.76 0 0); }
+}
+:root[data-theme="dark"] .seg-btn:not(.active),
+:root[data-theme="dark"] .bal-pill:not(.active) { color: oklch(0.76 0 0); }
+
 /* table toolbar: search + filters */
 .tx-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
 .tx-search { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 220px; max-width: 360px; padding: 0 14px; height: 34px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--text-faint); transition: border-color var(--dur-1) var(--ease); }
@@ -1176,44 +1177,46 @@ body:not(.demo-on) .section:has(> .demo-strip) { display: none; }
    cells like the stat strip, no swatches, no tick colours. Each pair is
    its own cell: click goes to Trade, drag reorders (the client's pinned
    order, shared with the Trade pair picker). */
-/* rates head: the word "Rates" left, freshness dot right — the one place
-   "live" appears. A rate is a ticker line; a balance is typeset money. */
-.rr-head { display: flex; align-items: center; justify-content: space-between; margin-top: 24px; }
-.rr-title { font-size: var(--text-12); color: var(--text-subtle); }
-
-.rates-row {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  width: 100%;
-  margin-top: 10px;
-}
-.rates-row > * {
-  display: block;
+/* ————— per-currency balance cards — tinted identity surfaces —————
+   A deliberate Hamis override of the boxed-number ban (2026-09-03): each
+   balance is a card in its identity hue's 8% tint, the whole card taps
+   through to the currency's balance view. Rates left the dashboard the
+   same day: the dashboard shows what you hold, pricing lives on Trade. */
+.bal-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+.bal-card {
+  display: flex; flex-direction: column; gap: 10px; align-items: flex-start;
   min-width: 0;
-  margin: 0;
-  padding: 6px 0 6px 24px;
-  background: none;
-  border: none;
-  border-left: 1px solid var(--border-faint);
+  padding: 16px 18px 15px;
+  border-radius: var(--r-card);
   text-align: left;
-  font: inherit;
-  color: inherit;
+  transition: transform var(--dur-1) var(--ease);
 }
-.rates-row > :first-child { border-left: none; padding-left: 0; }
-button.rr-cell { cursor: pointer; }
-button.rr-cell.dragging { opacity: 0.4; }
-/* one-line ticker cell: pair and level inline, smaller than money */
-.rates-row .rr-pair { display: inline; font-size: var(--text-12); color: var(--text-subtle); }
-.rates-row .rr-rate {
-  display: inline;
-  margin-left: 8px;
-  font-size: 16px;
-  font-weight: var(--w-medium);
-  letter-spacing: -0.01em;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-strong);
+.bal-card:hover { transform: translateY(-1px); }
+.bal-card.cat-aed  { background: color-mix(in srgb, var(--cat-7) 8%, transparent); }
+.bal-card.cat-usd  { background: color-mix(in srgb, var(--cat-4) 8%, transparent); }
+.bal-card.cat-eur  { background: color-mix(in srgb, var(--cat-1) 8%, transparent); }
+.bal-card.cat-bhd  { background: color-mix(in srgb, var(--text-faint) 8%, transparent); }
+.bal-card.cat-usdt { background: color-mix(in srgb, var(--cat-8) 8%, transparent); }
+.bal-card .bc-name { font-size: var(--text-12); color: var(--text-subtle); }
+.bal-card .bc-amt {
+  max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis;
+  font-family: var(--font-num); font-size: 19px; font-weight: var(--w-medium);
+  color: var(--text-strong); font-variant-numeric: tabular-nums; letter-spacing: -0.01em;
 }
-button.rr-cell:hover .rr-pair { color: var(--text-default); }
+.bal-card .bc-sub { font-size: var(--text-12); }
+
+/* Balances screen: currency pills switch the per-currency view */
+.bal-pills { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.bal-pill {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 6px 14px; border-radius: 999px;
+  font-size: var(--text-12); color: var(--text-subtle);
+  background: var(--surface-2);
+  transition: color var(--dur-1) var(--ease);
+}
+.bal-pill:hover { color: var(--text-default); }
+.bal-pill.active { background: var(--card-bg); color: var(--text-strong); box-shadow: var(--elev-1); }
 
 /* drag-to-reorder shared affordance (trade pair seg uses the same class) */
 .seg-btn.dragging { opacity: 0.4; }
@@ -1271,15 +1274,14 @@ button.rr-cell:hover .rr-pair { color: var(--text-default); }
   /* tables scroll themselves (base .table + per-table computed min-width);
      the page never scrolls sideways */
 
-  /* balances go single column: one-line tiles read as a ledger on a phone */
+  /* IB stat strips go single column on a phone */
   .stat-strip { grid-template-columns: 1fr; row-gap: 4px; }
   .stat-strip > * { border-left: none; padding: 10px 0; }
 
-  /* the rates row goes two-up */
-  .rates-row { grid-template-columns: repeat(2, 1fr); row-gap: 12px; }
-  .rates-row > * { padding-left: 14px; }
-  .rates-row > :nth-child(odd) { border-left: none; padding-left: 0; }
-  .rates-row .rr-rate { font-size: 14px; }
+  /* balance cards stack two-up; tighter metrics so the money never clips */
+  .bal-cards { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .bal-card { padding: 13px 14px 12px; gap: 8px; }
+  .bal-card .bc-amt { font-size: 15px; letter-spacing: -0.02em; }
 
   /* trade: the one centered object. Segments span, the amount is the
      hero, and the rail's tier/limit blocks are demoted (the panel's own
@@ -1299,8 +1301,17 @@ button.rr-cell:hover .rr-pair { color: var(--text-default); }
     text-overflow: ellipsis;
   }
 
-  /* drawers take the width; the inline width style loses on purpose */
-  .panel { width: calc(100vw - 16px) !important; }
+  /* drawers become bottom sheets on the phone (the inline width loses on
+     purpose); same paper, same grammar, anchored to the thumb */
+  .panel {
+    top: auto !important;
+    left: 8px; right: 8px; bottom: 8px;
+    width: auto !important;
+    max-width: none;
+    max-height: 82vh;
+    transform: translateY(24px);
+  }
+  .panel-wrap.open .panel { transform: translateY(0); }
 
   /* journeys breathe on a small sheet */
   .bare-body { padding-left: 16px; padding-right: 16px; }

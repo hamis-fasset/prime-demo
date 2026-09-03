@@ -1,16 +1,19 @@
 /* ————————————————————————————————————————————————
-   Fasset Prime — the per-currency balance view. Added with IA v2
-   (2026-09-03), the OpenFX /balance/<cur> pattern in Prime's skin:
-   tap a balance on the dashboard and land here — the balance hero,
-   THIS currency's deposit details (the old Move money deposit tab,
-   dissolved), its statements, and its ledger. Rows open the shared
-   details drawer.
+   Fasset Prime — Balances (per-currency view). Added with IA v2
+   (2026-09-03); promoted to the Money nav the same day (Hamis):
+   currency pills switch the view, the balance hero, its statements,
+   and its ledger. Rows open the shared details drawer.
 
-   Off the nav on purpose: reachable from the dashboard tiles, with
-   one Dashboard action to go back. The statement document (overlay,
-   derived entirely from the ledger) moved here from the deleted
-   History screen; the statement's CSV download is the product's one
-   export, per Hamis 2026-09-03.
+   Deposit and Withdraw both start HERE (Hamis 2026-09-03): Deposit
+   opens a sheet (side sheet on web, bottom sheet on the phone — the
+   drawer grammar app-wide) with the copy-ready details; Withdraw
+   hands off to the withdraw screen preset to this currency. The
+   deposit details no longer sit on the page: too much, especially
+   on the phone.
+
+   The statement document (overlay, derived entirely from the ledger)
+   moved here from the deleted History screen; the statement's CSV
+   download is the product's one export, per Hamis 2026-09-03.
    ———————————————————————————————————————————————— */
 (function () {
   "use strict";
@@ -19,46 +22,67 @@
   var NET = "TRC20";
   var ROOT = null;
 
-  var NAMES = { AED: "UAE dirham", USD: "US dollar", EUR: "Euro", BHD: "Bahraini dinar", USDT: "Tether USD" };
+  var CURS = ["AED", "USD", "EUR", "BHD", "USDT"];
 
+  function name(c) { return Data.curName ? Data.curName(c) : c; }
   function ccy(cur, opts) { return UI.ccy ? UI.ccy(cur, opts) : UI.esc(cur); }
   function rate4(r) { return Number(r).toFixed(4); }
   function repaint(el, html) { if (!el) return; if (UI.repaint) UI.repaint(el, html); else el.innerHTML = html; }
   function region(id) { return ROOT ? ROOT.querySelector('[data-balsec="' + id + '"]') : null; }
 
-  // ————— hero + deposit details —————
+  // ————— currency pills: this screen is the home of every balance —————
+
+  function pillsHtml() {
+    return '<div class="bal-pills">' + CURS.map(function (c) {
+      return '<button class="bal-pill' + (c === CUR ? " active" : "") + '" data-balcur="' + c + '" type="button">' +
+        ccy(c) + "</button>";
+    }).join("") + "</div>";
+  }
+
+  // ————— hero: the figure alone. The title names the currency. —————
 
   function heroHtml() {
     var live = Data.railLive(CUR);
     return '<div class="bal-hero"><div>' +
-      '<div class="bal-label">' + ccy(CUR) + " · " + UI.esc(NAMES[CUR] || CUR) + "</div>" +
-      '<div class="bal-value">' + (live ? UI.moneyHero(CUR, Data.state.bal[CUR] || 0) : "—") + "</div>" +
-      '<div class="bal-delta">' + (live ? UI.statusDot("positive", "live") : UI.statusDot("neutral", "not yet live")) + "</div>" +
+      '<div class="bal-value">' + (live ? UI.moneyHero(CUR, Data.state.bal[CUR] || 0, { symbol: true }) : "—") + "</div>" +
+      (live ? "" : '<div class="bal-delta">' + UI.statusDot("neutral", "not yet live") + "</div>") +
       "</div></div>";
   }
 
-  function depositHtml() {
-    if (!Data.railLive(CUR)) {
-      return '<div class="section-head"><h2>Deposit</h2></div>' +
-        '<p class="tq-statement">' + UI.esc(CUR) + " deposit details appear here the moment the rail is live.</p>";
-    }
+  // ————— deposit: a sheet, not a page section —————
+
+  function depositBody() {
     if (CUR === "USDT") {
-      return '<div class="section-head"><h2>Deposit</h2>' +
-        '<span class="link">' + UI.statusDot("positive", "Fasset custody") + "</span></div>" +
-        '<div class="seg" style="margin-bottom:12px">' +
+      return '<div class="seg" style="margin-bottom:16px">' +
           ["TRC20", "ERC20"].map(function (n) {
             return '<button class="seg-btn' + (NET === n ? " active" : "") + '" data-net="' + n + '" type="button">' +
               (n === "TRC20" ? "TRC20 · Tron" : "ERC20 · Ethereum") + "</button>";
           }).join("") +
         "</div>" +
-        UI.copyRow("Address", Data.USDT_ADDRS[NET], { mono: true, copy: Data.USDT_ADDRS[NET] });
+        UI.copyRow("Address", Data.USDT_ADDRS[NET], { mono: true, copy: Data.USDT_ADDRS[NET] }) +
+        '<div class="copy-row"><span class="cr-label">Custody</span><span class="cr-value">Fasset custody</span></div>';
     }
     var v = Data.VIBANS[CUR];
-    return '<div class="section-head"><h2>Deposit</h2></div>' +
-      UI.copyRow("IBAN", v.iban, { mono: true, copy: v.copy }) +
+    return UI.copyRow("IBAN", v.iban, { mono: true, copy: v.copy }) +
       // verbatim: the sending bank checks this string against ours
       UI.copyRow("Account name", Data.ACCOUNT_NAME, { copy: Data.ACCOUNT_NAME }) +
       '<div class="copy-row"><span class="cr-label">Bank</span><span class="cr-value">Zand Bank · Dubai, UAE</span></div>';
+  }
+
+  function openDeposit() {
+    if (!Data.railLive(CUR)) return;
+    var h = UI.drawer("Deposit " + name(CUR), "", {
+      width: 480,
+      foot: '<button class="btn btn-secondary" id="bdClose" type="button">Close</button>'
+    });
+    function paintBody() {
+      h.body.innerHTML = depositBody();
+      h.body.querySelectorAll("[data-net]").forEach(function (b) {
+        b.addEventListener("click", function () { NET = b.getAttribute("data-net"); paintBody(); });
+      });
+    }
+    paintBody();
+    h.el.querySelector("#bdClose").addEventListener("click", h.close);
   }
 
   // ————— statements (ported from the deleted History screen) —————
@@ -386,20 +410,30 @@
 
   function render(el) {
     ROOT = el;
-    var back = el.querySelector("#balBack");
-    if (back) back.addEventListener("click", function () { App.go("dashboard"); });
+    var dep = el.querySelector("#balDeposit");
+    if (dep) dep.addEventListener("click", openDeposit);
+    var wd = el.querySelector("#balWithdraw");
+    if (wd) wd.addEventListener("click", function () {
+      var w = App.screen("withdraw");
+      if (w && w.setCur) w.setCur(CUR);
+      App.go("withdraw");
+    });
 
     el.insertAdjacentHTML("beforeend",
+      '<div data-balsec="pills">' + pillsHtml() + "</div>" +
       '<div class="section" data-balsec="hero">' + heroHtml() + "</div>" +
-      '<div class="section" data-balsec="deposit">' + depositHtml() + "</div>" +
       '<div class="section" data-balsec="statements">' + statementsHtml() + "</div>" +
       '<div class="section" data-balsec="ledger"><div class="section-head"><h2>Activity</h2></div>' +
         '<div id="balLedger">' + ledgerHtml() + "</div></div>");
 
     el.addEventListener("click", function (e) {
       if (!e.target.closest) return;
-      var net = e.target.closest("[data-net]");
-      if (net) { NET = net.getAttribute("data-net"); repaint(region("deposit"), depositHtml()); return; }
+      var pill = e.target.closest("[data-balcur]");
+      if (pill) {
+        var c = pill.getAttribute("data-balcur");
+        if (c !== CUR) { CUR = c; App.rerender(); }   // the title names the currency
+        return;
+      }
       var st = e.target.closest("[data-stmt]");
       if (st) { openStatement(st.getAttribute("data-stmt"), CUR, st); return; }
       var row = e.target.closest(".row.clickable");
@@ -411,12 +445,16 @@
   }
 
   App.registerScreen("balance", {
-    title: function () { return CUR; },
+    title: function () { return name(CUR) + " balance"; },
     actions: function () {
-      return '<button class="btn btn-secondary" id="balBack" type="button">Dashboard</button>';
+      var live = Data.railLive(CUR);
+      if (!live) return "";
+      var canAct = Data.state.role !== "viewer";
+      return (canAct ? '<button class="btn btn-secondary" id="balWithdraw" type="button">Withdraw</button>' : "") +
+        '<button class="btn btn-primary" id="balDeposit" type="button">Deposit</button>';
     },
     zone: "app",
-    setCur: function (c) { if (NAMES[c]) CUR = c; },
+    setCur: function (c) { if (CURS.indexOf(c) >= 0) CUR = c; },
     render: render,
     onData: function (scope) {
       if (scope === "prefs" || scope === "all") return false;

@@ -198,6 +198,10 @@
   App.registerScreen("withdraw", {
     title: "Withdraw",
     zone: "app",
+    // off the nav since 2026-09-03: the flow starts from a balance view
+    setCur: function (c) {
+      if (CURS.indexOf(c) >= 0 && Data.railLive(c)) { WD.cur = c; WD.dest = ""; WD.err = ""; WD.stage = "form"; }
+    },
     render: render,
     onData: function (scope) {
       if (scope === "prefs" || scope === "all") return false;

@@ -114,14 +114,17 @@
     var dp = opts.dp === undefined ? 2 : opts.dp;
     var st = opts.stagger === undefined ? 22 : opts.stagger;
     var delay = Number(opts.delay) || 0;
+    // { symbol: true } renders the proper currency symbol where a latin one
+    // exists ($, €); the rest keep their code. Hero/tile use only.
+    var label = opts.symbol && window.Data && Data.curSymbol ? Data.curSymbol(cur) : cur;
     var s = UI.fmtNum(Math.abs(Number(n || 0)), dp);
     var parts = s.split(".");
     var intH = '<span class="money-int">' + assemble(parts[0], st, 0, delay) + "</span>";
     var decH = parts[1] ? '<span class="money-dec">' + assemble("." + parts[1], st, parts[0].length, delay) + "</span>" : "";
     if (SUFFIX[cur]) {
-      return '<span class="money">' + intH + decH + '<span class="money-ccy">' + UI.esc(cur) + "</span></span>";
+      return '<span class="money">' + intH + decH + '<span class="money-ccy">' + UI.esc(label) + "</span></span>";
     }
-    return '<span class="money"><span class="money-sym">' + UI.esc(cur) + "</span>" + intH + decH + "</span>";
+    return '<span class="money"><span class="money-sym">' + UI.esc(label) + "</span>" + intH + decH + "</span>";
   };
 
   // UI.digits(el, text, opts) — per-digit assembly for a NON-MONEY figure: a

@@ -31,8 +31,8 @@
 
    Transient state lives in the screen-local Q object and survives
    re-renders; a webhook can never lose a running lock. Data API:
-   makeQuote · placeOrder · sendToDesk · fundOrder · settleOrder ·
-   deskBooksOverLimit.
+   makeQuote · placeOrder · fundOrder · settleOrder. Over-limit is an
+   offline RM conversation (2026-09-03), not an in-app request.
    ———————————————————————————————————————————————— */
 (function () {
   "use strict";
@@ -90,6 +90,7 @@
     Q = {
       buyCur: buyU ? "USDT" : f,
       sellCur: buyU ? f : "USDT",
+      entry: "buy",             // which card the client typed into — either works
       amt: t ? UI.fmtNum(buyU ? t.assetAmt : t.fiatAmt, 0) : "",
       prefilledFrom: t ? t.id : null,
       amtNum: 0, fiatFirm: 0, notional: 0, ref: 0, rate: 0, newRate: 0, expiresAt: 0,
@@ -99,6 +100,9 @@
       gtr: false, gtrSent: false, armReprice: false
     };
   }
+
+  function curOf(side) { return side === "buy" ? Q.buyCur : Q.sellCur; }
+  function entryCur() { return curOf(Q.entry); }
 
   // ————— the lock: width driven by the clock, never by an easing curve —————
 
@@ -144,16 +148,17 @@
     var raw = parseAmt(Q.amt);
     if (!raw) { UI.toast("Enter an amount first.", "blocked"); return; }
     if (Data.state.stale) { UI.toast("Rate feed interrupted. Nothing quotes on a stale price.", "blocked"); return; }
-    var provisional = buyingUSDT() ? raw : raw / Data.refRate(pairId());
+    var typedUSDT = entryCur() === "USDT";
+    var provisional = typedUSDT ? raw : raw / Data.refRate(pairId());
     var notional = Data.notionalAED(pairId(), provisional);
     if (notional > Data.LIMIT_AED) { Q.amtNum = provisional; Q.notional = notional; Q.state = "overlimit"; renderPanel(); return; }
     var q = Data.makeQuote(pairId(), side(), provisional);
     Q.ref = q.ref; Q.rate = q.rate; Q.expiresAt = q.expiresAt;
-    if (buyingUSDT()) {
+    if (typedUSDT) {
       Q.amtNum = raw;
       Q.fiatFirm = raw * Q.rate;
     } else {
-      // the client typed the fiat they receive; the USDT leg firms to match
+      // the client typed the fiat leg; the USDT leg firms to match
       Q.amtNum = raw / Q.rate;
       Q.fiatFirm = raw;
     }
@@ -199,6 +204,7 @@
     var buyU = t.side === "buy";
     Q.buyCur = buyU ? "USDT" : Data.fiatOf(t.pair);
     Q.sellCur = buyU ? Data.fiatOf(t.pair) : "USDT";
+    Q.entry = "buy";
     Q.amt = UI.fmtNum(buyU ? t.assetAmt : t.fiatAmt, 0);
     Q.prefilledFrom = t.id;
     getQuote();
@@ -207,10 +213,10 @@
 
   // ————— the object —————
 
-  function maxLegText() {
+  function maxLegText(cur) {
     var perUSDT = Data.notionalAED(pairId(), 1);
     var maxU = perUSDT ? Data.LIMIT_AED / perUSDT : 0;
-    var maxLeg = buyingUSDT() ? maxU : maxU * Data.refRate(pairId());
+    var maxLeg = cur === "USDT" ? maxU : maxU * Data.refRate(pairId());
     return "Up to " + UI.fmtNum(maxLeg, 0);
   }
 
@@ -227,35 +233,56 @@
       }).join("") + "</select>";
   }
 
-  function sellDisplay() {
+  // the estimated value of the NON-entry side, from the typed side, via USDT.
+  // Indicative only: the firm number exists once a quote is locked.
+  function estFor(side) {
     var raw = parseAmt(Q.amt);
-    if (Q.state === "quoted" || Q.state === "executing") {
-      var firm = buyingUSDT() ? Q.fiatFirm : Q.amtNum;
-      return UI.moneyHero(Q.sellCur, firm, { dp: buyingUSDT() ? 2 : 0 });
-    }
-    if (!raw) return '<span class="faint">0.00</span>';
-    var est = buyingUSDT() ? raw * Data.refRate(pairId()) : raw / Data.refRate(pairId());
-    return UI.money(Q.sellCur, est, { dp: buyingUSDT() ? 2 : 0 });
+    if (!raw) return "";
+    var r = Data.refRate(pairId());
+    var usdt = entryCur() === "USDT" ? raw : raw / r;
+    var out = curOf(side) === "USDT" ? usdt : usdt * r;
+    return UI.fmtNum(out, curOf(side) === "USDT" ? 0 : 2);
   }
 
-  function objectHtml(mode) {
+  function firmFor(side) {
+    return curOf(side) === "USDT" ? Q.amtNum : Q.fiatFirm;
+  }
+
+  // one card per side. Both sides are typeable in idle (Hamis 2026-09-03):
+  // typing in a card makes it the entry side and the other side estimates.
+  // Once quoted, the entry side is the client's exact size and the other
+  // side lands firm through the moneyHero ceremony.
+  function cardHtml(side, mode) {
     var S = Data.state;
     var idle = mode === "idle";
     var firm = mode === "quoted" || mode === "executing";
+    var cur = curOf(side);
+    var isEntry = Q.entry === side;
+    var body;
+    if (idle) {
+      body = '<input class="tx-amt' + (isEntry ? "" : " est") + '" id="txAmt-' + side + '" inputmode="decimal" autocomplete="off" placeholder="' +
+        UI.esc(maxLegText(cur)) + '" value="' + UI.esc(isEntry ? Q.amt : estFor(side)) + '">';
+    } else if (isEntry) {
+      body = '<input class="tx-amt" id="txAmt-' + side + '" value="' + UI.esc(Q.amt) + '" readonly>';
+    } else {
+      body = '<div class="tx-amt tx-amt-out' + (firm ? "" : " est") + '">' +
+        (firm ? UI.moneyHero(cur, firmFor(side), { dp: cur === "USDT" ? 0 : 2 }) : '<span class="faint">0.00</span>') + "</div>";
+    }
+    var note = isEntry ? "" : (firm ? "firm at your locked rate" : "indicative");
+    var balLbl = side === "sell" ? "Available " : "Balance ";
+    return '<div class="tx-card">' +
+      '<div class="tx-row1"><span class="tx-label">' + (side === "buy" ? "You buy" : "You sell") + "</span>" + selHtml(side) + "</div>" +
+      body +
+      '<div class="tx-row3"><span>' + note + "</span><span>" + balLbl + UI.money(cur, S.bal[cur] || 0) + "</span></div>" +
+    "</div>";
+  }
+
+  function objectHtml(mode) {
+    var idle = mode === "idle";
     return '<div class="tx-object">' +
-      '<div class="tx-card">' +
-        '<div class="tx-row1"><span class="tx-label">You buy</span>' + selHtml("buy") + "</div>" +
-        '<input class="tx-amt" id="txAmt" inputmode="decimal" autocomplete="off" placeholder="' +
-          UI.esc(maxLegText()) + '" value="' + UI.esc(Q.amt) + '"' + (idle ? "" : " readonly") + ">" +
-        '<div class="tx-row3"><span></span><span>Balance ' + UI.money(Q.buyCur, S.bal[Q.buyCur] || 0) + "</span></div>" +
-      "</div>" +
+      cardHtml("buy", mode) +
       '<div class="tx-swap-row"><button class="tx-swap" id="txSwap" type="button" aria-label="Swap"' + (idle ? "" : " disabled") + ">" + icon("swap", 15) + "</button></div>" +
-      '<div class="tx-card">' +
-        '<div class="tx-row1"><span class="tx-label">You sell</span>' + selHtml("sell") + "</div>" +
-        '<div class="tx-amt tx-amt-out' + (firm ? "" : " est") + '" id="txSellAmt">' + sellDisplay() + "</div>" +
-        '<div class="tx-row3"><span id="txSellNote">' + (firm ? "firm at your locked rate" : "estimate at market reference") + "</span>" +
-          "<span>Balance " + UI.money(Q.sellCur, S.bal[Q.sellCur] || 0) + "</span></div>" +
-      "</div>" +
+      cardHtml("sell", mode) +
     "</div>";
   }
 
@@ -292,15 +319,13 @@
   function panelHtml() {
     var S = Data.state;
     if (Q.gtr) return gtrHtml();
-    if (Q.state === "desk_sent" && !S.deskRequest) Q.state = "idle";
     if (!Data.railLive(fiat())) { Q.buyCur = "USDT"; Q.sellCur = "AED"; }
 
     if (Q.state === "idle") {
+      // no price before the quote (Hamis 2026-09-03): the estimated side says
+      // "indicative" and the firm number exists only once a quote is locked
       return (S.stale ? '<div class="note note-warning tq-note" style="margin-bottom:16px">Rate feed interrupted, so nothing quotes on a stale price. Try again in a moment.</div>' : "") +
         objectHtml("idle") +
-        // the same reference level the dashboard rates row shows, in the same
-        // slot the firm rate lands in — the number never changes identity
-        '<div class="tx-quote-row"><span class="tx-rate-line">1 USDT = ' + rate4(Data.refRate(pairId())) + " " + UI.esc(fiat()) + "</span></div>" +
         '<button class="btn btn-primary btn-lg tx-cta" id="txGo" type="button">Get quote</button>' +
         '<p class="freshline mt-12" style="text-align:center">Firm for your exact size, locked for ' + Data.LOCK_SECS + " seconds.</p>";
     }
@@ -359,19 +384,11 @@
     }
 
     if (Q.state === "overlimit") {
+      // higher limits are an offline conversation, never an in-app order
       return headline("Above your self-serve limit") +
         '<p class="tq-statement">This trade is ' + UI.money("AED", Q.notional) + ". Your limit is " +
-          UI.money("AED", Data.LIMIT_AED, { dp: 0 }) + " per trade. The desk books it for you.</p>" +
-        '<div class="tq-actions"><button class="btn btn-primary btn-lg" id="tqDesk" type="button">Send to the desk</button>' +
-          '<button class="btn btn-secondary" id="tqCancel" type="button">Adjust the amount</button></div>';
-    }
-
-    if (Q.state === "desk_sent") {
-      var r = Data.state.deskRequest;
-      return headline("With the desk") +
-        '<div class="note note-info tq-note">Request DR-' + UI.esc(r.id) + " created for " + (r.side === "buy" ? "buy " : "sell ") +
-          UI.fmtNum(r.amt, 0) + " USDT, " + UI.money("AED", r.notional) + ". The desk will contact you.</div>" +
-        '<div class="tq-actions"><button class="btn btn-secondary" id="tqDone" type="button">Done</button></div>';
+          UI.money("AED", Data.LIMIT_AED, { dp: 0 }) + " per trade. Contact your relationship manager to get set up for higher limits.</p>" +
+        '<div class="tq-actions"><button class="btn btn-primary" id="tqCancel" type="button">Adjust the amount</button></div>';
     }
 
     return "";
@@ -478,14 +495,22 @@
       Q.justBooked = false;
     }
 
-    var amt = byId("txAmt");
-    if (amt && Q.state === "idle") {
-      amt.addEventListener("input", function () {
-        Q.amt = amt.value;
-        var out = byId("txSellAmt");
-        if (out) out.innerHTML = sellDisplay();
+    // both cards are typeable: typing in one makes it the entry side and the
+    // other side estimates in place. Only the estimate repaints, never the
+    // input the client is typing into.
+    if (Q.state === "idle") {
+      ["buy", "sell"].forEach(function (s) {
+        var inp = byId("txAmt-" + s);
+        if (!inp) return;
+        inp.addEventListener("input", function () {
+          Q.entry = s;
+          Q.amt = inp.value;
+          inp.classList.remove("est");
+          var other = byId("txAmt-" + (s === "buy" ? "sell" : "buy"));
+          if (other) { other.value = estFor(s === "buy" ? "sell" : "buy"); other.classList.add("est"); }
+        });
+        inp.addEventListener("keydown", function (e) { if (e.key === "Enter") getQuote(); });
       });
-      amt.addEventListener("keydown", function (e) { if (e.key === "Enter") getQuote(); });
     }
     var swap = byId("txSwap");
     if (swap) swap.addEventListener("click", function () {
@@ -493,6 +518,7 @@
       var b = Q.buyCur;
       Q.buyCur = Q.sellCur;
       Q.sellCur = b;
+      Q.entry = Q.entry === "buy" ? "sell" : "buy";   // the typed value follows its currency
       renderPanel();
     });
     var sel = byId("txFiatSel");
@@ -515,7 +541,6 @@
       if (b && b.setCur && Q.booked) b.setCur(Q.booked.payCur || fiat());
       App.go("balance");
     });
-    on("tqDesk", function () { Data.sendToDesk({ pair: pairId(), side: side(), amtNum: Q.amtNum, notional: Q.notional }); Q.state = "desk_sent"; renderPanel(); });
     on("tqGtrGo", function () {
       Q.gtrSent = true;
       renderPanel();
@@ -571,7 +596,6 @@
       '<button class="db-btn" id="tqFund" type="button">Webhook: funding arrives</button>' +
       '<button class="db-btn" id="tqSettle" type="button">Fast-forward: settlement window elapses</button>' +
       '<button class="db-btn' + (Q.gtr ? " on" : "") + '" id="tqGtr" type="button">Toggle: GTR account (desk pricing)</button>' +
-      (Data.state.deskRequest ? '<button class="db-btn" id="tqDeskBook" type="button">Desk books the over-limit trade</button>' : "") +
       "</div></div>";
 
     el.insertAdjacentHTML("beforeend", h);
@@ -604,7 +628,6 @@
       if (b) b.classList.toggle("on", Q.gtr);
       if (canAct) renderPanel();
     });
-    on("tqDeskBook", function () { Data.deskBooksOverLimit(); });
   }
 
   App.registerScreen("trade", {

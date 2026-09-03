@@ -34,7 +34,7 @@
    0 saturated fills · 1 hue colouring text (--st-error, held only).
    Status dots stay --st-*; an identity hue never lands on a round dot.
 
-   States inventory: loading (one skeleton pass, rates-row-shaped) ·
+   States inventory: loading (one skeleton pass) ·
    live · stale feed (warning status, last-known values, rates caption
    timestamps itself) · first-run zero balance (rates row KEPT: it
    prices the first trade before funding) · rails-not-live (value is a
@@ -51,7 +51,6 @@
   var sig = {};             // last painted html per region — kills double paints
 
   var CURS = ["AED", "USD", "EUR", "BHD", "USDT"];
-  var PAIRS = ["USDT/AED", "USDT/USD", "USDT/EUR", "USDT/BHD"];
 
   // ————— foundation helpers, with a graceful floor —————
 
@@ -72,7 +71,8 @@
 
   // ————— the hero: total balance in the client's chosen denomination —————
   // The freshline is gone (2026-09-03): balances move only on confirmed
-  // events, they are facts, not a feed. Freshness lives on the rates head.
+  // events, they are facts, not a feed. Rates left the dashboard the same
+  // day — pricing lives on Trade.
 
   function heroTotal() {
     var aed = liveTotal();
@@ -88,86 +88,26 @@
 
   function heroLabelHtml() { return "Total balance" + heroSeg(); }
 
-  // ————— reference rates: the row that replaced the line —————
-  // Indicative, never a quote. Rates are non-money figures, so they
-  // assemble through UI.digits. No swatches, no tick colours, no arrows:
-  // level plus timestamp is what a professional expects from a reference
-  // line, and direction colour would collide with the status vocabulary.
-  // THE ANATOMY RULE (2026-09-03): a rate is a ticker line — pair and
-  // level inline, small; a balance is typeset money — swatch + moneyHero.
-  // Swatch means "you hold this"; no swatch means "market level". The
-  // "live" dot belongs to the rates head and nowhere near a balance.
-
-  // each pair is its own cell: click goes to Trade, drag reorders. The order
-  // is the client's pinned preference (Data.state.pairOrder) and the Trade
-  // pair picker follows the same order.
-  function ratesRow() {
-    var canTrade = Data.state.role !== "viewer";
-    var pairs = Data.state.pairOrder && Data.state.pairOrder.length ? Data.state.pairOrder : PAIRS;
-    return '<div class="rates-row">' + pairs.map(function (p) {
-      var r = Data.refRate(p);
-      var inner = '<span class="rr-pair">' + UI.esc(p) + "</span>" +
-        '<span class="rr-rate">' + (r ? UI.digits(null, r.toFixed(4)) : "—") + "</span>";
-      return canTrade
-        ? '<button class="rr-cell" data-rrpair="' + UI.esc(p) + '" data-go-trade draggable="true" title="Drag to reorder" type="button">' + inner + "</button>"
-        : '<span class="rr-cell">' + inner + "</span>";
-    }).join("") + "</div>";
-  }
-
-  function ratesHead() {
-    var dot = Data.state.stale
-      ? UI.statusDot("warning", "last known · updated " + UI.fmtTime(new Date(Date.now() - 9 * 60000).toISOString()))
-      : UI.statusDot("positive", "live · updated " + UI.fmtTime());
-    return '<div class="rr-head"><span class="rr-title">Rates</span>' + dot + "</div>";
-  }
-
-  function ratesHtml() {
-    return ratesHead() + ratesRow();
-  }
-
-  // drag-to-reorder wiring; one binding per node, same guard style as bind()
-  var dragPair = null;
-  function wireRatesDnd(node) {
-    if (!node) return;
-    node.querySelectorAll("[data-rrpair]").forEach(function (b) {
-      if (b.__dbDnd) return;
-      b.__dbDnd = true;
-      b.addEventListener("dragstart", function () { dragPair = b.getAttribute("data-rrpair"); b.classList.add("dragging"); });
-      b.addEventListener("dragend", function () { b.classList.remove("dragging"); });
-      b.addEventListener("dragover", function (e) { e.preventDefault(); });
-      b.addEventListener("drop", function (e) {
-        e.preventDefault();
-        var to = b.getAttribute("data-rrpair");
-        if (!dragPair || dragPair === to) return;
-        var order = (Data.state.pairOrder || []).slice();
-        var fi = order.indexOf(dragPair), ti = order.indexOf(to);
-        if (fi < 0 || ti < 0) return;
-        order.splice(fi, 1);
-        order.splice(ti, 0, dragPair);
-        dragPair = null;
-        Data.setPairOrder(order);
-      });
-    });
-  }
-
-  // ————— per-currency cell: one line, the code lives once, in the money —————
-  // No dot, no "live": a rendered balance on a live rail is self-evidently
-  // current. The sub-line exists only for an exception (a not-yet-live rail).
+  // ————— per-currency balance cards —————
+  // Rates left the dashboard entirely (Hamis 2026-09-03): the dashboard shows
+  // what you HOLD, and pricing lives on Trade. Each balance is a tinted card
+  // in its identity hue — a deliberate Hamis override of the boxed-number
+  // ban — named properly ("UAE dirham", "Tether USD"), the amount in its
+  // proper symbol where a latin one exists. No dots, no "live": the only
+  // sub-line is the not-yet-live exception. The whole card taps through to
+  // the currency's balance view.
 
   function currencyCell(cur) {
     var live = Data.railLive(cur);
     var fr = Data.state.firstRun;
     var bal = fr ? 0 : (Data.state.bal[cur] || 0);
 
-    // the tile is the balance and nothing else. Tapping it opens that
-    // currency's balance view (deposit details, statements, ledger).
-    var line = live
-      ? '<div class="tile-money">' + ccy(cur, { label: false }) + UI.moneyHero(cur, bal) + "</div>"
-      : '<div class="tile-money">' + ccy(cur, { label: false }) +
-          '<span class="money faint"><span class="money-sym">' + UI.esc(cur) + "</span>—</span></div>" +
-        '<div class="tile-sub">' + UI.statusDot("neutral", "not yet live") + "</div>";
-
-    return '<button class="stat-strip-cell" data-bal="' + UI.esc(cur) + '" type="button">' + line + "</button>";
+    return '<button class="bal-card cat-' + cur.toLowerCase() + '" data-bal="' + UI.esc(cur) + '" type="button">' +
+      '<span class="bc-name">' + UI.esc(Data.curName ? Data.curName(cur) : cur) + "</span>" +
+      (live
+        ? '<span class="bc-amt">' + UI.moneyHero(cur, bal, { symbol: true }) + "</span>"
+        : '<span class="bc-amt faint">—</span><span class="bc-sub">' + UI.statusDot("neutral", "not yet live") + "</span>") +
+      "</button>";
   }
 
   function stripHtml() {
@@ -256,14 +196,7 @@
 
   function wireRegion(node) {
     if (!node) return;
-    bind(node, "[data-go-trade]", function (e) {
-      // a rates cell lands Trade on the pair the client tapped, so the level
-      // they just read is the level the screen quotes from
-      var p = e.currentTarget.getAttribute && e.currentTarget.getAttribute("data-rrpair");
-      var tr = App.screen("trade");
-      if (p && tr && tr.setPair) tr.setPair(p);
-      App.go("trade");
-    });
+    bind(node, "[data-go-trade]", function () { App.go("trade"); });
     bind(node, "[data-totcur]", function (e) {
       Data.setTotalCur(e.currentTarget.getAttribute("data-totcur"));
     });
@@ -317,8 +250,7 @@
       '<div class="bal-hero"><div>' +
         '<div class="bal-label" id="dbHeroLabel">' + heroLabelHtml() + "</div>" +
         '<div class="bal-value" id="dbHeroVal">' + UI.moneyHero(S.totalCur, heroTotal()) + "</div>" +
-      "</div></div>" +
-      '<div id="dbRates">' + ratesHtml() + "</div>";
+      "</div></div>";
 
     if (S.stale) {
       h += '<div class="note note-warning mt-16">Balance feed interrupted. Showing last-known values; it re-syncs automatically.</div>';
@@ -330,9 +262,9 @@
     }
     h += "</div>";
 
-    // — per-currency balances: a stat strip, never boxed numbers —
+    // — per-currency balances: tinted identity cards, whole card taps through —
     h += '<div class="section"><div class="section-head"><h2>Balances</h2></div>' +
-      '<div class="stat-strip" id="dbStrip">' + stripHtml() + "</div></div>";
+      '<div class="bal-cards" id="dbStrip">' + stripHtml() + "</div></div>";
 
     // — the feed: every money event, one list, rows open the details drawer —
     h += '<div class="section"><div class="section-head"><h2>Activity</h2></div>' +
@@ -352,13 +284,11 @@
     // choreography (title → hero → rates → strips → table) applies
     el.insertAdjacentHTML("beforeend", h);
     wireRegion(el);
-    wireRatesDnd(el);
 
     // the paint signatures start here, so the first patch only touches what
     // a confirmed event actually changed
     sig = {
       hero: String(total) + ":" + S.totalCur,
-      rates: ratesHtml(),
       strip: stripHtml(),
       act: activityHtml()
     };
@@ -391,9 +321,6 @@
       if (lbl) { lbl.innerHTML = heroLabelHtml(); wireRegion(lbl); }
     }
 
-    paint("dbRates", ratesHtml(), "rates");
-    wireRatesDnd(document.getElementById("dbRates"));
-    requestAnimationFrame(function () { wireRatesDnd(document.getElementById("dbRates")); });
     paint("dbStrip", stripHtml(), "strip");
     paint("dbActivity", activityHtml(), "act");
     return true;

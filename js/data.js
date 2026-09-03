@@ -24,7 +24,12 @@
   var FX_AED = { AED: 1, USD: 3.6725, EUR: 4.2740, BHD: 9.7670, USDT: 3.6728 }; // reference, for AED-equivalent figures
   var SPREAD = 0.0025;        // Tier 2 = reference + 25 bps
   var LIMIT_AED = 7500000;    // per-trade self-serve limit
-  var LOCK_SECS = 20;         // client quote lock (15–30 s band)
+  var LOCK_SECS = 60;         // client quote lock (one minute; margin covers it — Hamis 2026-09-03)
+
+  // display vocabulary: proper names title screens, proper symbols sit in the
+  // money where one exists in latin script (the rest read their code)
+  var CUR_NAMES = { AED: "UAE dirham", USD: "US dollar", EUR: "Euro", BHD: "Bahraini dinar", USDT: "Tether USD" };
+  var CUR_SYMBOLS = { USD: "$", EUR: "€" };
   var TEST_AMT = 9.37;        // demo test-transfer amount (random per test in production)
 
   var VIBANS = {
@@ -98,8 +103,6 @@
     bal: { AED: 12485320.50, USD: 1204880.00, EUR: 460000.00, BHD: 85000.000, USDT: 3145220.10 },
 
     journey: { review: "not_started", entity: "institution", submittedIso: null, comments: [], rejectedReason: null, railsIssuing: false },
-
-    deskRequest: null,                // over-limit trade sent to the desk
 
     deposits: [
       { id: "D-2214", cur: "AED", amount: 2450000.00, state: "processing", via: "bank", ts: agoIso(74), crTs: null, sender: "Emirates NBD · your whitelisted account" },
@@ -227,6 +230,9 @@
     state: S,
     REF: REF, SPREAD: SPREAD, LIMIT_AED: LIMIT_AED, LOCK_SECS: LOCK_SECS, TEST_AMT: TEST_AMT,
     VIBANS: VIBANS, ACCOUNT_NAME: ACCOUNT_NAME, USDT_ADDRS: USDT_ADDRS,
+    CUR_NAMES: CUR_NAMES,
+    curName: function (cur) { return CUR_NAMES[cur] || cur; },
+    curSymbol: function (cur) { return CUR_SYMBOLS[cur] || cur; },
     on: function (fn) { listeners.push(fn); },
     off: function (fn) { var i = listeners.indexOf(fn); if (i >= 0) listeners.splice(i, 1); },
 
@@ -403,12 +409,8 @@
       emit("trades");
       return t;
     },
-    sendToDesk: function (q) {
-      S.deskRequest = { id: nextIds.desk++, amt: q.amtNum, notional: q.notional, side: q.side, pair: q.pair };
-      Data.notify("Sent to the desk · request DR-" + S.deskRequest.id, "The desk has your request and will be in touch.", "trade");
-      emit("trades");
-      return S.deskRequest;
-    },
+    // (Over-limit trades are an offline conversation with the relationship
+    //  manager — Hamis 2026-09-03. The in-app desk-request flow is gone.)
 
     // ————— client actions (portal-side) —————
 
@@ -687,21 +689,6 @@
       t.state = "settled"; t.stamps.settled = nowIso();
       if (t.side === "buy") S.bal.USDT += t.assetAmt; else S.bal[Data.fiatOf(t.pair)] += t.fiatAmt;
       Data.notify("Trade completed · " + t.id, "Proceeds are in your available balance.", "dashboard");
-      emit("trades");
-      return t;
-    },
-    deskBooksOverLimit: function () { // desk books the pending over-limit request
-      if (!S.deskRequest) return null;
-      var r = S.deskRequest;
-      var rate = REF[r.pair] * (r.side === "buy" ? 1 + SPREAD : 1 - SPREAD);
-      var t = { id: "T-" + (nextIds.trade++), pair: r.pair, side: r.side, assetAmt: r.amt, fiatAmt: r.amt * rate, rate: rate,
-        ts: nowIso(), byDesk: true, state: "settled", needed: 0, stamps: { placed: nowIso(), funded: nowIso(), settled: nowIso() } };
-      S.trades.unshift(t);
-      var fiat = Data.fiatOf(r.pair);
-      if (r.side === "buy") { S.bal[fiat] -= t.fiatAmt; S.bal.USDT += t.assetAmt; }
-      else { S.bal[fiat] += t.fiatAmt; S.bal.USDT -= t.assetAmt; }
-      S.deskRequest = null;
-      Data.notify("Trade booked by the desk · " + t.id, "Booked at " + rate.toFixed(4) + ". It's in your history.", "history");
       emit("trades");
       return t;
     },
