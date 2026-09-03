@@ -105,7 +105,7 @@
       { id: "D-2213", cur: "AED", amount: 5000000.00, state: "credited", via: "bank", ts: agoIso(60 * 22), crTs: agoIso(60 * 21), sender: "Emirates NBD · your whitelisted account" },
       { id: "D-2209", cur: "USDT", amount: 1000000.00, state: "credited", via: "chain", ts: agoIso(60 * 96), crTs: agoIso(60 * 95), sender: "TRON · TAbCk…9fK2" }
     ],
-    // deposit states: detected → processing → credited · held → ident → processing
+    // deposit states: detected/processing → credited · failed (client labels: Processing → Completed · Failed)
 
     withdrawals: [
       { id: "W-1088", cur: "AED", amount: 1837800.00, dest: "Emirates NBD · AE45 0260 ···· 4471", state: "servicing", ts: agoIso(95),
@@ -115,7 +115,7 @@
       { id: "W-1079", cur: "USDT", amount: 500000.00, dest: "Treasury cold · TRON · TAbCk…9fK2", state: "confirmed", ts: agoIso(60 * 120),
         stamps: { submitted: agoIso(60 * 120), servicing: agoIso(60 * 119.8), sent: agoIso(60 * 119.5), confirmed: agoIso(60 * 119.2) } }
     ],
-    // withdrawal states: submitted → servicing → sent → confirmed
+    // withdrawal states: submitted/servicing/sent → confirmed · failed (client labels: Processing → Completed · Failed)
 
     trades: [
       { id: "T-9931", pair: "USDT/AED", side: "buy", assetAmt: 1500000, fiatAmt: 5521800.00, rate: 3.6812, ts: agoIso(147), byDesk: false,
@@ -127,16 +127,17 @@
       { id: "T-9871", pair: "USDT/USD", side: "buy", assetAmt: 300000, fiatAmt: 300120.00, rate: 1.0004, ts: agoIso(60 * 122), byDesk: false,
         state: "settled", needed: 0, stamps: { placed: agoIso(60 * 122), funded: agoIso(60 * 122), settled: agoIso(60 * 121.5) } }
     ],
-    // trade/order states: awaiting (funding) → settling → settled
+    // trade/order states: awaiting → settling → settled · failed (client labels: Awaiting funding → Processing → Completed · Failed)
 
     wallets: [
       { id: "WL-1", label: "Treasury cold", net: "TRON", addr: "TAbCk9F7uQ2mXw4rN8vJ5sLdYe1pHq9fK2", state: "tested", added: agoIso(60 * 24 * 47), testTs: agoIso(60 * 24 * 46), missing: [], reason: null },
       { id: "WL-2", label: "Ops hot", net: "Ethereum", addr: "0x3D91b7e4A2c85F60D14aB9cE7f2a4408Bb21C4dE", state: "verified", added: agoIso(60 * 24 * 9), testTs: null, missing: [], reason: null },
-      { id: "WL-3", label: "Custody", net: "Bitcoin", addr: "bc1qxw4l9k72m3trv8n0p5yj6c2s8u7d34a9e7slw", state: "needs_tr", added: agoIso(60 * 24 * 2), testTs: null, missing: ["VASP name", "beneficiary legal name"], reason: null },
-      { id: "WL-4", label: "Market ops", net: "TRON", addr: "TXpQr7Vw2aZs5cLm8dKe4uYh1nB6fJ3g0t", state: "test_sent", added: agoIso(60 * 24 * 6), testTs: agoIso(60 * 24 * 2), testAmt: TEST_AMT, missing: [], reason: null },
+      { id: "WL-3", label: "Custody", net: "Bitcoin", addr: "bc1qxw4l9k72m3trv8n0p5yj6c2s8u7d34a9e7slw", state: "pending", added: agoIso(60 * 24 * 2), testTs: null, reason: null },
+      { id: "WL-4", label: "Market ops", net: "TRON", addr: "TXpQr7Vw2aZs5cLm8dKe4uYh1nB6fJ3g0t", state: "verified", added: agoIso(60 * 24 * 6), testTs: null, reason: null },
       { id: "WL-5", label: "Broker", net: "Ethereum", addr: "0x99Af10c2E44b7D06a913fF25C08bb1a2843DdE07", state: "rejected", added: agoIso(60 * 24 * 12), testTs: null, missing: [], reason: "This address failed screening and can't be whitelisted. Contact support if that looks wrong." }
     ],
-    // wallet states: needs_tr → pending → verified → test_sent → tested · rejected
+    // wallet states: pending → verified (client sends the Satoshi test) → tested · rejected
+    // client labels: Pending review → Test transfer → Approved · Rejected
 
     banks: [
       { id: "B-1", bank: "Emirates NBD", iban: "AE45 0260 0010 1523 4404 471", title: "Delos Financial Limited", cur: "AED", state: "verified", added: agoIso(60 * 24 * 80), reason: null, byDesk: false },
@@ -156,10 +157,10 @@
     // member states: active · invited · expired · blocked (MFA not enrolled)
 
     notifs: [
-      { id: 1, title: "Deposit detected · AED 2,450,000", body: "Processing now. It joins your available balance once credited.", ts: agoIso(74), read: false, target: "move" },
-      { id: 2, title: "Withdrawal processing · AED 1,837,800", body: "On its way to Emirates NBD ····4471.", ts: agoIso(80), read: false, target: "move" },
-      { id: 3, title: "Trade booked · T-9931", body: "Bought 1,500,000 USDT at 3.6812 · AED 5,521,800.", ts: agoIso(147), read: true, target: "history" },
-      { id: 4, title: "Bank account pending review · FAB ····9902", body: "Your new destination is with the review team.", ts: agoIso(180), read: true, target: "whitelist" }
+      { id: 1, title: "Deposit processing · AED 2,450,000", body: "It joins your available balance once completed.", ts: agoIso(74), read: false, target: "dashboard" },
+      { id: 2, title: "Withdrawal processing · AED 1,837,800", body: "On its way to Emirates NBD ····4471.", ts: agoIso(80), read: false, target: "dashboard" },
+      { id: 3, title: "Trade booked · T-9931", body: "Bought 1,500,000 USDT at 3.6812 · AED 5,521,800.", ts: agoIso(147), read: true, target: "dashboard" },
+      { id: 4, title: "Bank account pending review · FAB ····9902", body: "", ts: agoIso(180), read: true, target: "accounts" }
     ],
 
     statements: [
@@ -248,10 +249,6 @@
       return S.withdrawals.filter(function (w) { return w.cur === cur && ["submitted", "servicing", "sent"].indexOf(w.state) >= 0; })
         .reduce(function (a, w) { return a + w.amount; }, 0);
     },
-    heldAmt: function (cur) {
-      return S.deposits.filter(function (d) { return d.cur === cur && (d.state === "held" || d.state === "ident"); })
-        .reduce(function (a, d) { return a + d.amount; }, 0);
-    },
     totalAedApprox: function () {
       return ["AED", "USD", "EUR", "BHD", "USDT"].reduce(function (a, c) { return a + (S.bal[c] || 0) * FX_AED[c]; }, 0);
     },
@@ -269,11 +266,15 @@
     // one normalized activity feed — plain fields, no HTML. Screens format.
     // entry: { kind: trade|dep|wd, id, ts, cur, title, sub, dir: +1|-1|0,
     //          amount, status: {kind, label}, obj }
+    // Client-facing labels are the locked 8-word vocabulary (2026-09-03):
+    // Processing · Completed · Awaiting funding · Failed · Pending review ·
+    // Test transfer · Approved · Rejected. Internal states stay as plumbing.
     activity: function () {
       var rows = [];
       S.trades.forEach(function (t) {
-        var st = t.state === "settled" ? { kind: "positive", label: "Settled" }
-          : t.state === "settling" ? { kind: "info", label: "Settling" }
+        var st = t.state === "settled" ? { kind: "positive", label: "Completed" }
+          : t.state === "failed" ? { kind: "error", label: "Failed" }
+          : t.state === "settling" ? { kind: "info", label: "Processing" }
           : { kind: "warning", label: "Awaiting funding" };
         rows.push({ kind: "trade", id: t.id, ts: t.ts, cur: Data.fiatOf(t.pair),
           title: (t.side === "buy" ? "Buy " : "Sell ") + Number(t.assetAmt).toLocaleString("en-US") + " USDT at " + t.rate.toFixed(4),
@@ -281,17 +282,17 @@
           dir: t.side === "buy" ? -1 : 1, amount: t.fiatAmt, status: st, obj: t });
       });
       S.deposits.forEach(function (d) {
-        var st = d.state === "credited" ? { kind: "positive", label: "Credited" }
-          : d.state === "held" ? { kind: "error", label: "Held for identification" }
-          : d.state === "ident" ? { kind: "warning", label: "Identification under review" }
-          : { kind: "info", label: d.state === "detected" ? "Detected" : "Processing" };
+        var st = d.state === "credited" ? { kind: "positive", label: "Completed" }
+          : d.state === "failed" ? { kind: "error", label: "Failed" }
+          : { kind: "info", label: "Processing" };
         rows.push({ kind: "dep", id: d.id, ts: d.ts, cur: d.cur,
           title: "Deposit " + d.id, sub: d.sender || (d.via === "bank" ? "bank transfer" : "on-chain"),
           dir: 1, amount: d.amount, status: st, obj: d });
       });
       S.withdrawals.forEach(function (w) {
-        var st = w.state === "confirmed" ? { kind: "positive", label: "Confirmed" }
-          : { kind: "info", label: { submitted: "Submitted", servicing: "Processing", sent: "Sent" }[w.state] };
+        var st = w.state === "confirmed" ? { kind: "positive", label: "Completed" }
+          : w.state === "failed" ? { kind: "error", label: "Failed" }
+          : { kind: "info", label: "Processing" };
         rows.push({ kind: "wd", id: w.id, ts: w.ts, cur: w.cur,
           title: "Withdrawal " + w.id, sub: w.dest,
           dir: -1, amount: w.amount, status: st, obj: w });
@@ -390,11 +391,11 @@
         S.bal[payCur] -= payAmt;
         t.state = "settling"; t.stamps.funded = nowIso();
         Data.notify("Order funded and booked · " + t.id,
-          (t.side === "buy" ? "Buy " : "Sell ") + Number(t.assetAmt).toLocaleString("en-US") + " USDT at your locked rate " + rate.toFixed(4) + ". Funds release within 30 minutes.", "history");
+          (t.side === "buy" ? "Buy " : "Sell ") + Number(t.assetAmt).toLocaleString("en-US") + " USDT at your locked rate " + rate.toFixed(4) + ". Funds release within 30 minutes.", "dashboard");
       } else {
         t.needed = payAmt - S.bal[payCur];
         Data.notify("Order awaiting funding · " + t.id,
-          "Placed at your locked rate " + rate.toFixed(4) + ". " + payCur + " " + Number(t.needed.toFixed(2)).toLocaleString("en-US") + " still needed within 24 hours, or the order lapses.", "move");
+          "Placed at your locked rate " + rate.toFixed(4) + ". " + payCur + " " + Number(t.needed.toFixed(2)).toLocaleString("en-US") + " still needed within 24 hours.", "dashboard");
       }
       S.trades.unshift(t);
       emit("trades");
@@ -415,63 +416,35 @@
       S.withdrawals.unshift(w);
       S.bal[cur] -= amount;
       var wc = Data.windowCopy();
-      Data.notify("Withdrawal submitted · " + cur + " " + Number(amount.toFixed(2)).toLocaleString("en-US"),
-        "To " + destLabel + ". " + wc.charAt(0).toUpperCase() + wc.slice(1) + ".", "move");
+      Data.notify("Withdrawal processing · " + cur + " " + Number(amount.toFixed(2)).toLocaleString("en-US"),
+        "To " + destLabel + ". " + wc.charAt(0).toUpperCase() + wc.slice(1) + ".", "dashboard");
       emit("withdrawals");
       return w;
     },
 
-    identifyHeld: function (depId) {
-      var d = S.deposits.filter(function (x) { return x.id === depId; })[0];
-      if (!d) return null;
-      d.state = "ident";
-      Data.notify("Identification submitted", "The desk is verifying the sender. The amount stays excluded until then.", "move");
-      emit("deposits");
-      return d;
-    },
-
-    addWallet: function (w) { // { label, net, addr, state: "pending"|"needs_tr", missing: [] }
+    addWallet: function (w) { // { label, net, addr }
       var rec = { id: "WL-" + (nextIds.wallet++), label: w.label || "Unnamed wallet", net: w.net, addr: w.addr,
-        state: w.state, added: nowIso(), testTs: null, missing: w.missing || [], reason: null };
+        state: "pending", added: nowIso(), testTs: null, reason: null };
       S.wallets.unshift(rec);
-      if (w.state === "pending") Data.notify("Wallet submitted for review", "Screening passed. It's with the review team.", "whitelist");
-      else Data.notify("Wallet saved · travel-rule info incomplete", "Still needed before review: " + rec.missing.join(", ") + ".", "whitelist");
+      Data.notify("Wallet submitted", "Pending review.", "accounts");
       emit("whitelist");
       return rec;
     },
-    completeTravelRule: function (walletId) {
-      var w = S.wallets.filter(function (x) { return x.id === walletId; })[0];
+    // chain webhook: the client's Satoshi test — a small amount sent FROM
+    // this wallet TO their USDT deposit address — was detected on-chain.
+    // Proves control of the source wallet; approval is automatic.
+    walletTestDetected: function (walletId) {
+      var w = S.wallets.filter(function (x) { return x.id === walletId && x.state === "verified"; })[0];
       if (!w) return null;
-      w.state = "pending"; w.missing = [];
-      Data.notify("Travel-rule info complete · " + w.label, "The wallet is now in review.", "whitelist");
+      w.state = "tested"; w.testTs = nowIso();
+      Data.notify("Wallet approved · " + w.label, "Test transfer received. Ready as a withdrawal destination.", "accounts");
       emit("whitelist");
       return w;
-    },
-    requestTest: function (walletId) {
-      var w = S.wallets.filter(function (x) { return x.id === walletId; })[0];
-      if (!w) return null;
-      w.state = "test_sent"; w.testTs = nowIso(); w.testAmt = TEST_AMT; w.testErr = false;
-      Data.notify("Test transfer sent · " + w.label, "Enter the exact amount received and you're done.", "whitelist");
-      emit("whitelist");
-      return w;
-    },
-    confirmTest: function (walletId, amount) {
-      var w = S.wallets.filter(function (x) { return x.id === walletId; })[0];
-      if (!w) return false;
-      if (Number(amount) === w.testAmt) {
-        w.state = "tested"; w.testErr = false;
-        Data.notify("Wallet tested · " + w.label, "Amount confirmed. Ready as a withdrawal destination.", "whitelist");
-        emit("whitelist");
-        return true;
-      }
-      w.testErr = true;
-      emit("whitelist");
-      return false;
     },
     removeWallet: function (walletId) {
       for (var i = 0; i < S.wallets.length; i++) if (S.wallets[i].id === walletId) {
         var w = S.wallets.splice(i, 1)[0];
-        Data.notify("Wallet removed · " + w.label, "Gone from your whitelist and the withdrawal picker.", "whitelist");
+        Data.notify("Wallet removed · " + w.label, "Gone from your accounts and the withdrawal picker.", "accounts");
         emit("whitelist");
         return w;
       }
@@ -481,14 +454,14 @@
       var rec = { id: "B-" + (nextIds.bank++), bank: b.bank, iban: b.iban, title: b.title, cur: b.cur,
         state: "pending", added: nowIso(), reason: null, byDesk: false };
       S.banks.unshift(rec);
-      Data.notify("Bank account submitted for review", "It's with the review team.", "whitelist");
+      Data.notify("Bank account submitted", "Pending review.", "accounts");
       emit("whitelist");
       return rec;
     },
     removeBank: function (bankId) {
       for (var i = 0; i < S.banks.length; i++) if (S.banks[i].id === bankId) {
         var b = S.banks.splice(i, 1)[0];
-        Data.notify("Bank account removed · " + b.bank + " " + b.iban.slice(-4), "Gone from your whitelist and the withdrawal picker.", "whitelist");
+        Data.notify("Bank account removed · " + b.bank + " " + b.iban.slice(-4), "Gone from your accounts and the withdrawal picker.", "accounts");
         emit("whitelist");
         return b;
       }
@@ -534,7 +507,7 @@
     // happened), "info" for a state change nobody asked for, "blocked" for a
     // stop. It never changes what lands in the drawer, only how it announces.
     notify: function (title, body, target, kind) {
-      S.notifs.unshift({ id: nextIds.notif++, title: title, body: body, ts: nowIso(), read: false, target: target || "history" });
+      S.notifs.unshift({ id: nextIds.notif++, title: title, body: body, ts: nowIso(), read: false, target: target || "dashboard" });
       emit("notifs");
       if (window.UI) UI.toast(title, kind || "done");
     },
@@ -638,7 +611,7 @@
       var a = amount || 3200000;
       var d = { id: "D-" + (nextIds.dep++), cur: "AED", amount: a, state: "detected", via: "bank", ts: nowIso(), crTs: null, sender: "Emirates NBD · your whitelisted account" };
       S.deposits.unshift(d);
-      Data.notify("Deposit detected · AED " + Number(a.toFixed(2)).toLocaleString("en-US"), "Processing now. It joins your available balance once credited.", "move");
+      Data.notify("Deposit detected · AED " + Number(a.toFixed(2)).toLocaleString("en-US"), "It joins your available balance once completed.", "dashboard");
       emit("deposits");
       setTimeout(function () {
         if (d.state === "detected") { d.state = "processing"; emit("deposits"); }
@@ -650,35 +623,36 @@
       if (!d) return null;
       d.state = "credited"; d.crTs = nowIso();
       S.bal[d.cur] += d.amount;
-      Data.notify("Deposit credited · " + d.cur + " " + Number(d.amount.toFixed(2)).toLocaleString("en-US"), "Available balance updated.", "history");
+      Data.notify("Deposit completed · " + d.cur + " " + Number(d.amount.toFixed(2)).toLocaleString("en-US"), "Available balance updated.", "dashboard");
       emit("deposits");
       return d;
     },
-    unknownSenderCredit: function (amount) { // webhook: credit from an unmatched account → held
-      var a = amount || 750000;
-      var d = { id: "D-" + (nextIds.dep++), cur: "AED", amount: a, state: "held", via: "bank", ts: nowIso(), crTs: null,
-        sender: "AL MARZOOQI TRADING FZE · AE47 0331 ···· 0415 (not one of your accounts)" };
-      S.deposits.unshift(d);
-      Data.notify("Deposit held for identification · AED " + Number(a.toFixed(2)).toLocaleString("en-US"), "We can't match the sender to your accounts. Confirm the sender to release it.", "move");
-      emit("deposits");
-      return d;
+    // (Unknown-sender credits are a desk-side Optimus queue — match or
+    //  return — never a client-facing state. Decision 2026-09-03.)
+    failWithdrawal: function () { // webhook: the bank bounced the oldest in-flight payout
+      var w = S.withdrawals.filter(function (x) { return x.state !== "confirmed" && x.state !== "failed"; }).pop();
+      if (!w) return null;
+      w.state = "failed";
+      S.bal[w.cur] += w.amount;   // the failed amount returns to available
+      Data.notify("Withdrawal failed · " + w.id, w.cur + " " + Number(w.amount.toFixed(2)).toLocaleString("en-US") + " is back in your available balance.", "dashboard", "blocked");
+      emit("withdrawals");
+      return w;
     },
-    resolveHeld: function () { // desk: resolves the oldest held/ident credit
-      var d = S.deposits.filter(function (x) { return x.state === "held" || x.state === "ident"; })[0];
-      if (!d) return null;
-      d.state = "processing"; d.sender = d.sender.replace(" (not one of your accounts)", " · identified");
-      Data.notify("Held deposit identified", "Sender matched. The deposit is processing normally.", "move");
-      emit("deposits");
-      return d;
+    lapseOrder: function () { // clock: the funding window ran out on the oldest awaiting order
+      var t = S.trades.filter(function (x) { return x.state === "awaiting"; }).pop();
+      if (!t) return null;
+      t.state = "failed";
+      Data.notify("Order failed · " + t.id, "The funding window ran out. Nothing was taken.", "dashboard", "blocked");
+      emit("trades");
+      return t;
     },
     advanceWithdrawal: function () { // desk: advances the oldest in-flight withdrawal one state
-      var w = S.withdrawals.filter(function (x) { return x.state !== "confirmed"; }).pop();
+      var w = S.withdrawals.filter(function (x) { return x.state !== "confirmed" && x.state !== "failed"; }).pop();
       if (!w) return null;
       var order = ["submitted", "servicing", "sent", "confirmed"];
       var nxt = order[order.indexOf(w.state) + 1];
       w.state = nxt; w.stamps[nxt] = nowIso();
-      var msgs = { servicing: "Your withdrawal is being processed.", sent: "The money has left Fasset and is on its way.", confirmed: "Confirmed. Your withdrawal is complete." };
-      Data.notify("Withdrawal update · " + w.id, msgs[nxt], nxt === "confirmed" ? "history" : "move");
+      if (nxt === "confirmed") Data.notify("Withdrawal completed · " + w.id, w.cur + " " + Number(w.amount.toFixed(2)).toLocaleString("en-US") + " arrived at " + w.dest + ".", "dashboard");
       emit("withdrawals");
       return w;
     },
@@ -687,7 +661,7 @@
       if (!t) return null;
       S.bal[t.payCur] = Math.max(0, S.bal[t.payCur] + t.needed - t.payAmt);
       t.needed = 0; t.state = "settling"; t.stamps.funded = nowIso();
-      Data.notify("Order funded and booked · " + t.id, "Booked at your locked rate " + t.rate.toFixed(4) + ". Funds release within 30 minutes.", "history");
+      Data.notify("Order funded and booked · " + t.id, "Booked at your locked rate " + t.rate.toFixed(4) + ". Funds release within 30 minutes.", "dashboard");
       emit("trades");
       return t;
     },
@@ -696,7 +670,7 @@
       if (!t) return null;
       t.state = "settled"; t.stamps.settled = nowIso();
       if (t.side === "buy") S.bal.USDT += t.assetAmt; else S.bal[Data.fiatOf(t.pair)] += t.fiatAmt;
-      Data.notify("Trade settled · " + t.id, "Proceeds are in your available balance.", "history");
+      Data.notify("Trade completed · " + t.id, "Proceeds are in your available balance.", "dashboard");
       emit("trades");
       return t;
     },
@@ -721,7 +695,7 @@
       var target = w && b ? (new Date(w.added) < new Date(b.added) ? w : b) : (w || b);
       if (!target) return null;
       target.state = "verified";
-      Data.notify((target.net ? "Wallet" : "Bank account") + " verified · " + (target.label || target.bank),
+      Data.notify((target.net ? "Wallet" : "Bank account") + " approved · " + (target.label || target.bank),
         target.net ? "Next: request a test transfer and confirm the amount." : "Ready as a withdrawal destination.", "whitelist");
       emit("whitelist");
       return target;
@@ -735,7 +709,7 @@
       target.reason = target.net
         ? "Beneficiary name doesn't match the VASP's records. Check the travel-rule details."
         : "Account name doesn't match your entity. Send a bank letter or IBAN certificate in the entity's legal name.";
-      Data.notify((target.net ? "Wallet" : "Bank account") + " rejected", target.reason, "whitelist");
+      Data.notify((target.net ? "Wallet" : "Bank account") + " rejected", target.reason, "accounts");
       emit("whitelist");
       return target;
     },

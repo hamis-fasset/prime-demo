@@ -349,13 +349,13 @@
     if (Q.state === "placed") {
       var t = Q.booked;
       var head = t.state === "awaiting" ? "Order placed · awaiting funding"
-        : t.state === "settling" ? "Funded · booked at your locked rate" : "Settled";
+        : t.state === "settling" ? "Funded · booked at your locked rate" : "Completed";
       var note = t.state === "awaiting"
         ? '<div class="note note-warning tq-note mt-16">Your rate is locked. ' + UI.money(t.payCur, t.needed) +
-          ' still needed within 24 hours, or the order lapses. <button class="link" id="tqDeposit" type="button">View your deposit details</button></div>'
+          ' still needed within 24 hours. <button class="link" id="tqDeposit" type="button">View your deposit details</button></div>'
         : t.state === "settling"
-        ? '<div class="note note-info tq-note mt-16">Funds release within 30 minutes. Until then they show as in flight.</div>'
-        : '<div class="note note-positive tq-note mt-16">Settled. The proceeds are in your available balance.</div>';
+        ? '<div class="note note-info tq-note mt-16">Funds release within 30 minutes.</div>'
+        : '<div class="note note-positive tq-note mt-16">Completed. The proceeds are in your available balance.</div>';
       return headline(head) + orderSummary(t) + note +
         '<div class="tq-actions">' +
           (t.state === "awaiting" ? "" : '<button class="btn btn-primary" id="tqRepeatLast" type="button">Repeat</button>') +
@@ -397,43 +397,13 @@
   // richer lifecycle view and keeps it.
 
   function tradeStatus(t) {
-    if (t.state === "settled") return UI.statusDot("positive", "Settled");
-    if (t.state === "settling") return UI.statusDot("info", "Settling");
+    if (t.state === "settled") return UI.statusDot("positive", "Completed");
+    if (t.state === "failed") return UI.statusDot("error", "Failed");
+    if (t.state === "settling") return UI.statusDot("info", "Processing");
     return UI.statusDot("warning", "Awaiting funding");
   }
 
-  function openTradeDetails(t) {
-    var f = Data.fiatOf(t.pair);
-    var buyU = t.side === "buy";
-    var canAct = Data.state.role !== "viewer";
-    var legs =
-      '<div class="txd-legs">' +
-        '<div class="txd-leg"><span class="txd-what"><span class="tx-label">Purchased</span><span class="txd-cur">' + ccy(buyU ? "USDT" : f) + "</span></span>" +
-          '<span class="txd-amt">' + (buyU ? UI.money("USDT", t.assetAmt, { dp: 0 }) : UI.money(f, t.fiatAmt)) + "</span></div>" +
-        '<span class="txd-pill">1 USDT = ' + rate4(t.rate) + " " + UI.esc(f) + "</span>" +
-        '<div class="txd-leg"><span class="txd-what"><span class="tx-label">Sold</span><span class="txd-cur">' + ccy(buyU ? f : "USDT") + "</span></span>" +
-          '<span class="txd-amt">' + (buyU ? UI.money(f, t.fiatAmt) : UI.money("USDT", t.assetAmt, { dp: 0 })) + "</span></div>" +
-      "</div>";
-
-    var h = UI.drawer("Trade details", "", {
-      width: 460,
-      foot: (canAct ? '<button class="btn btn-primary" id="txdRepeat" type="button">Repeat trade</button>' : "") +
-            '<button class="btn btn-secondary" id="txdClose" type="button">Close</button>'
-    });
-    h.body.innerHTML =
-      '<div class="def-group">' +
-        '<div class="def-row"><span class="def-label">Trade</span><span class="def-value strong">' + UI.esc(t.id) + "</span></div>" +
-        '<div class="def-row"><span class="def-label">Status</span><span class="def-value">' + tradeStatus(t) + "</span></div>" +
-        '<div class="def-row"><span class="def-label">Placed by</span><span class="def-value">' + (t.byDesk ? "The desk, for you" : "You") + "</span></div>" +
-        '<div class="def-row"><span class="def-label">Placed on</span><span class="def-value">' + UI.esc(UI.fmtTs(t.ts)) + "</span></div>" +
-        (t.stamps && t.stamps.settled
-          ? '<div class="def-row"><span class="def-label">Settled on</span><span class="def-value">' + UI.esc(UI.fmtTs(t.stamps.settled)) + "</span></div>"
-          : '<div class="def-row"><span class="def-label">Settlement</span><span class="def-value">Within 30 minutes of funding</span></div>') +
-      "</div>" + legs;
-    h.el.querySelector("#txdClose").addEventListener("click", h.close);
-    var rep = h.el.querySelector("#txdRepeat");
-    if (rep) rep.addEventListener("click", function () { h.close(); repeat(t); });
-  }
+  // details open through the shared drawer (js/details.js)
 
   // ————— trade history: the simple table —————
 
@@ -477,7 +447,7 @@
       r.__txWired = true;
       r.addEventListener("click", function () {
         var t = Data.state.trades.filter(function (x) { return x.id === r.getAttribute("data-key"); })[0];
-        if (t) openTradeDetails(t);
+        if (t && window.Details) Details.open("trade", t);
       });
     });
   }
@@ -544,7 +514,11 @@
     on("tqDecline", function () { Q.state = "idle"; renderPanel(); });
     on("tqDone", function () { Q.state = "idle"; renderPanel(); });
     on("tqRepeatLast", function () { repeat(Q.booked); });
-    on("tqDeposit", function () { App.go("move"); });
+    on("tqDeposit", function () {
+      var b = App.screen("balance");
+      if (b && b.setCur && Q.booked) b.setCur(Q.booked.payCur || fiat());
+      App.go("balance");
+    });
     on("tqDesk", function () { Data.sendToDesk({ pair: pairId(), side: side(), amtNum: Q.amtNum, notional: Q.notional }); Q.state = "desk_sent"; renderPanel(); });
     on("tqGtrGo", function () {
       Q.gtrSent = true;
@@ -591,8 +565,7 @@
 
     h += '<div class="section"><div class="tx-wrap" id="tqPanel"></div></div>';
 
-    h += '<div class="section"><div class="section-head"><h2>Trade history</h2>' +
-      '<button class="link" data-go-history type="button">Full history' + icon("arrowRight", 12) + "</button></div>" +
+    h += '<div class="section"><div class="section-head"><h2>Trade history</h2></div>' +
       '<div id="txHist">' + historyHtml() + "</div></div>";
 
     h += '<div class="section"><div class="demo-strip">' +
@@ -616,8 +589,6 @@
     }
 
     wireHist();
-    var goH = el.querySelector("[data-go-history]");
-    if (goH) goH.addEventListener("click", function () { App.go("history"); });
 
     var on = function (id, fn) { var b = el.querySelector("#" + id); if (b) b.addEventListener("click", fn); };
     on("tqArm", function () {
@@ -644,6 +615,7 @@
     title: "Trade",
     subtitle: "A firm, executable rate for your exact size, locked while you commit",
     zone: "app",
+    prefill: function (t) { repeat(t); },
     render: render,
     // protect a running lock: nothing here rebuilds the panel from a webhook.
     // History and the cards' balance lines patch in place; a full render

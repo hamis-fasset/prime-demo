@@ -48,7 +48,6 @@
 
   // ————— screen-local flags: per app load, never per data change —————
   var loadedOnce = false;   // the one skeleton pass
-  var curFlight = [];       // in-flight rows by index, for the click targets
   var sig = {};             // last painted html per region — kills double paints
 
   var CURS = ["AED", "USD", "EUR", "BHD", "USDT"];
@@ -151,87 +150,21 @@
     var live = Data.railLive(cur);
     var fr = Data.state.firstRun;
     var bal = fr ? 0 : (Data.state.bal[cur] || 0);
-    var held = fr ? 0 : Data.heldAmt(cur);
 
-    // the figure is set, not printed: per-digit assembly on every balance.
-    // The tile is the balance and nothing else (declutter cut, 2026-09-03);
-    // in-flight money has ONE home, the In flight now strip. Held is the one
-    // exception: an error state is never clutter.
+    // the tile is the balance and nothing else. Tapping it opens that
+    // currency's balance view (deposit details, statements, ledger).
     var value = live
       ? '<div class="tile-value">' + UI.moneyHero(cur, bal) + "</div>"
       : '<div class="tile-value faint">—</div>';
 
-    return '<button class="stat-strip-cell" data-go-move type="button">' +
+    return '<button class="stat-strip-cell" data-bal="' + UI.esc(cur) + '" type="button">' +
       '<div class="tile-label">' + ccy(cur) + '<span style="margin-left:auto"></span>' + railStatus(cur) + "</div>" +
       value +
-      (live && held ? '<div class="tile-sub"><span class="error status-error">' + UI.fmtNum(held) + " held</span></div>" : "") +
       "</button>";
   }
 
   function stripHtml() {
     return CURS.map(currencyCell).join("");
-  }
-
-  // ————— in flight now —————
-  // Everything in this strip is provisional, so nothing here is accent.
-  // Money leaving recedes (.muted), a held credit escalates (--st-error),
-  // and an order awaiting funding carries no hue at all: the word "needed"
-  // and the sentence do that work.
-
-  function inflightRows() {
-    var S = Data.state;
-    if (S.firstRun) return [];
-    var rows = [];
-    S.deposits.forEach(function (d) {
-      if (d.state === "detected" || d.state === "processing") rows.push({
-        cur: d.cur,
-        amt: '<span class="if-amt">' + UI.money(d.cur, d.amount, { sign: "+" }) + "</span>",
-        txt: "Deposit " + d.id + " · " + (d.state === "detected" ? "detected" : "processing") + " · " + UI.fmtTs(d.ts),
-        go: "move"
-      });
-      if (d.state === "held" || d.state === "ident") rows.push({
-        cur: d.cur,
-        amt: '<span class="if-amt error status-error">' + UI.money(d.cur, d.amount) + "</span>",
-        txt: "Held for identification · excluded from available balance",
-        go: "move"
-      });
-    });
-    S.withdrawals.forEach(function (w) {
-      if (["submitted", "servicing", "sent"].indexOf(w.state) >= 0) rows.push({
-        cur: w.cur,
-        amt: '<span class="if-amt muted">' + UI.money(w.cur, w.amount, { sign: "−" }) + "</span>",
-        txt: "Withdrawal " + w.id + " · " + Data.windowCopy(),
-        go: "move"
-      });
-    });
-    S.trades.forEach(function (t) {
-      if (t.state === "awaiting") rows.push({
-        cur: t.payCur || Data.fiatOf(t.pair),
-        amt: '<span class="if-amt">' + UI.money(t.payCur || Data.fiatOf(t.pair), t.needed) + " needed</span>",
-        txt: "Order " + t.id + " · awaiting funding at " + t.rate.toFixed(4) + " · fund within 24 hours or it lapses",
-        go: "move"
-      });
-      if (t.state === "settling") rows.push({
-        cur: t.side === "buy" ? "USDT" : Data.fiatOf(t.pair),
-        amt: '<span class="if-amt">' + (t.side === "buy" ? UI.money("USDT", t.assetAmt, { sign: "+", dp: 0 }) : UI.money(Data.fiatOf(t.pair), t.fiatAmt, { sign: "+" })) + "</span>",
-        txt: "Trade " + t.id + " · settling · funds release within 30 minutes",
-        go: "history"
-      });
-    });
-    return rows;
-  }
-
-  function flightHtml() {
-    curFlight = inflightRows();
-    if (!curFlight.length) return '<div class="empty empty-sm">Nothing in flight. Everything you hold is settled.</div>';
-    // the swatch sits at the left edge of every row, so the rails read as one
-    // scannable column rather than four codes buried in four figures
-    return curFlight.map(function (r, i) {
-      return '<button class="inflight-row" data-if="' + i + '" type="button">' +
-        ccy(r.cur, { label: false }) + r.amt +
-        '<span class="if-txt">' + UI.esc(r.txt) + "</span>" +
-        '<span class="if-go link">View' + icon("chevronRight", 12) + "</span></button>";
-    }).join("");
   }
 
   // ————— recent activity: the no-lines table —————
@@ -247,8 +180,12 @@
     return "amount";
   }
 
+  var curActs = {};   // key → entry, for the drawer
+
   function activityHtml() {
-    var acts = Data.state.firstRun ? [] : Data.activity().slice(0, 5);
+    var acts = Data.state.firstRun ? [] : Data.activity().slice(0, 30);
+    curActs = {};
+    acts.forEach(function (a) { curActs[a.kind + ":" + a.id] = a; });
     var rows = [], day = null;
     acts.forEach(function (a) {
       var lbl = UI.dayLabel(a.ts);
@@ -280,6 +217,11 @@
     });
   }
 
+  function openRow(row) {
+    var a = curActs[row.getAttribute("data-key")];
+    if (a && window.Details) Details.openEntry(a);
+  }
+
   // ————— skeleton: shaped like what lands, rates row included —————
 
   function skeletonHtml() {
@@ -289,7 +231,6 @@
       '<div class="mt-16">' + UI.skel("100%", "56px") + "</div>" +
       '<div class="mt-24 flex" style="gap:32px">' + UI.skel("180px", "56px") + UI.skel("180px", "56px") + UI.skel("180px", "56px") + UI.skel("180px", "56px") + "</div>" +
       '<div class="mt-32">' + UI.skel("100%", "56px") + "</div>" +
-      '<div class="mt-8">' + UI.skel("100%", "56px") + "</div>" +
       '<div class="mt-8">' + UI.skel("100%", "56px") + "</div>" +
       "</div>";
   }
@@ -308,15 +249,20 @@
 
   function wireRegion(node) {
     if (!node) return;
-    bind(node, "[data-go-move]", function () { App.go("move"); });
-    bind(node, "[data-go-history]", function () { App.go("history"); });
     bind(node, "[data-go-trade]", function () { App.go("trade"); });
-    bind(node, ".row.clickable", function () { App.go("history"); });
-    bind(node, "[data-if]", function (e) {
-      var b = e.currentTarget;
-      var r = curFlight[+b.getAttribute("data-if")];
-      if (r) App.go(r.go);
+    bind(node, "[data-bal]", function (e) {
+      var cur = e.currentTarget.getAttribute("data-bal");
+      var b = App.screen("balance");
+      if (b && b.setCur) b.setCur(cur);
+      App.go("balance");
     });
+    bind(node, ".row.clickable", function (e) { openRow(e.currentTarget); });
+    // demo webhooks: the whole feed's lifecycle pushes live here now
+    bind(node, "#dbSimDep", function () { Data.simulateDeposit(3200000); });
+    bind(node, "#dbSimCredit", function () { if (!Data.creditOldest()) UI.toast("Nothing processing. Detect a deposit first.", "blocked"); });
+    bind(node, "#dbWdAdvance", function () { if (!Data.advanceWithdrawal()) UI.toast("No withdrawal in flight.", "blocked"); });
+    bind(node, "#dbWdFail", function () { if (!Data.failWithdrawal()) UI.toast("No withdrawal in flight.", "blocked"); });
+    bind(node, "#dbLapse", function () { if (!Data.lapseOrder()) UI.toast("No order awaiting funding.", "blocked"); });
   }
 
   // ————— render —————
@@ -363,8 +309,8 @@
     }
     if (fr) {
       h += '<div class="mt-24"><p class="muted" style="font-size:14px">Welcome. Your account is ready.</p>' +
-        '<p class="tile-sub mt-4">Fund it to start trading. Your deposit details are in Move money.</p>' +
-        '<button class="btn btn-primary mt-16" data-go-move type="button">Go to Move money</button></div>';
+        '<p class="tile-sub mt-4">Fund it to start trading.</p>' +
+        '<button class="btn btn-primary mt-16" data-bal="AED" type="button">View your deposit details</button></div>';
     }
     h += "</div>";
 
@@ -372,14 +318,19 @@
     h += '<div class="section"><div class="section-head"><h2>Balances</h2></div>' +
       '<div class="stat-strip" id="dbStrip">' + stripHtml() + "</div></div>";
 
-    // — in flight now —
-    h += '<div class="section"><div class="section-head"><h2>In flight now</h2></div>' +
-      '<div id="dbFlight">' + flightHtml() + "</div></div>";
-
-    // — recent activity —
-    h += '<div class="section"><div class="section-head"><h2>Recent activity</h2>' +
-      '<button class="link" data-go-history type="button">Full history' + icon("arrowRight", 12) + "</button></div>" +
+    // — the feed: every money event, one list, rows open the details drawer —
+    h += '<div class="section"><div class="section-head"><h2>Activity</h2></div>' +
       '<div id="dbActivity">' + activityHtml() + "</div></div>";
+
+    // — demo: the bank, the chain and the desk, simulated —
+    h += '<div class="section"><div class="demo-strip">' +
+      '<span class="freshline">Demo · webhooks and desk pushes for the feed.</span>' +
+      '<button class="db-btn" id="dbSimDep" type="button">AED deposit detected</button>' +
+      '<button class="db-btn" id="dbSimCredit" type="button">Oldest deposit completes</button>' +
+      '<button class="db-btn" id="dbWdAdvance" type="button">Withdrawal advances</button>' +
+      '<button class="db-btn" id="dbWdFail" type="button">A withdrawal fails</button>' +
+      '<button class="db-btn" id="dbLapse" type="button">An awaiting order lapses</button>' +
+      "</div></div>";
 
     // sections land as direct children of .screen so the entrance
     // choreography (title → hero → rates → strips → table) applies
@@ -394,7 +345,6 @@
       delta: deltaHtml(),
       rates: ratesHtml(),
       strip: stripHtml(),
-      flight: flightHtml(),
       act: activityHtml()
     };
   }
@@ -431,7 +381,6 @@
     wireRatesDnd(document.getElementById("dbRates"));
     requestAnimationFrame(function () { wireRatesDnd(document.getElementById("dbRates")); });
     paint("dbStrip", stripHtml(), "strip");
-    paint("dbFlight", flightHtml(), "flight");
     paint("dbActivity", activityHtml(), "act");
     return true;
   }

@@ -35,21 +35,26 @@
 
   // ————— navigation model (zone "app") —————
   // Sentence-case 11px group labels; role-gated items simply don't render.
+  // IA v2 (Hamis, 2026-09-03): the dashboard IS the history; deposit details
+  // live in each currency's balance view; Withdraw stands alone; Accounts
+  // absorbs the whitelist. Move money and History are gone.
   var NAV = [
     { label: "Overview", items: [
-      { id: "dashboard", label: "Dashboard", icon: "overview", roles: ["admin", "trader", "viewer"] },
-      { id: "history", label: "History", icon: "clock", roles: ["admin", "trader", "viewer"] }
+      { id: "dashboard", label: "Dashboard", icon: "overview", roles: ["admin", "trader", "viewer"] }
     ]},
     { label: "Money", items: [
       { id: "trade", label: "Trade", icon: "trade", roles: ["admin", "trader"] },
-      { id: "move", label: "Move money", icon: "move", roles: ["admin", "trader", "viewer"] }
+      { id: "withdraw", label: "Withdraw", icon: "move", roles: ["admin", "trader", "viewer"] },
+      { id: "accounts", label: "Accounts", icon: "shieldCheck", roles: ["admin", "trader"] }
     ]},
     { label: "Manage", items: [
-      { id: "whitelist", label: "Whitelist", icon: "shieldCheck", roles: ["admin", "trader"] },
       { id: "team", label: "Team", icon: "users", roles: ["admin"] },
       { id: "settings", label: "Settings", icon: "settings", roles: ["admin", "trader", "viewer"] }
     ]}
   ];
+
+  // balance views are reachable from the dashboard, not the nav
+  var OFF_NAV = ["balance"];
 
   // The IB persona is one individual — no team, no roles. Items carry no
   // roles field and every linked screen is theirs.
@@ -67,6 +72,7 @@
   function homeId() { return Data.state.persona === "ib" ? "ib-overview" : "dashboard"; }
 
   function allowed(id) {
+    if (OFF_NAV.indexOf(id) >= 0) return Data.state.persona !== "ib";
     var role = Data.state.role;
     var ok = false;
     navSet().forEach(function (g) {
@@ -301,7 +307,7 @@
           h.close();
           if (n.target === "hub") App.go("hub");
           else if (screens[n.target]) App.go(n.target);
-          else App.go("history");
+          else App.go("dashboard");
         });
       });
     }
