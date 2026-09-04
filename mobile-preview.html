@@ -1,23 +1,240 @@
 <!doctype html>
-<!-- Dev harness: the app inside a phone-sized frame, because media queries
-     respond to the iframe viewport. Serve the folder and open this file to
-     check the ≤600px layer without resizing your browser. Not part of the
-     bundle (build-bundle.py reads index.html only). -->
+<!-- Prime in a phone: the real app (index.html) inside an iPhone-class device
+     frame, the way it will actually be used: a web view on a phone, not a
+     native app. The second device is a lock screen that mirrors Prime's
+     notifications as banners, so a demo can show the client being told.
+     Dev harness AND demo surface. Not part of the artifact bundle
+     (build-bundle.py reads index.html only); mirrored to prime-demo so
+     https://hamis-fasset.github.io/prime-demo/mobile-preview.html is live. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Prime · phone preview</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prime on a phone</title>
 <style>
-  body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; gap: 40px; background: #2a2a28; font: 12px -apple-system, sans-serif; }
-  .frame { border-radius: 28px; padding: 10px; background: #111; box-shadow: 0 30px 80px rgba(0,0,0,0.5); }
-  .frame iframe { display: block; width: 390px; height: 760px; border: 0; border-radius: 20px; background: #fff; }
-  .cap { color: #999; text-align: center; margin-top: 10px; }
+  :root {
+    --paper: oklch(0.9946 0.0018 120);
+    --linen: oklch(0.9672 0.0062 122);
+    --ink: oklch(0.2331 0.0231 152);
+    --text: oklch(0.2811 0.0093 140);
+    --subtle: oklch(0.46 0.0088 130);
+    --faint: oklch(0.535 0.0072 125);
+    --border: oklch(0.9269 0.006 120);
+    --accent: oklch(0.6061 0.1275 162.0);
+    --font: "General Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: var(--font); color: var(--text);
+    background:
+      radial-gradient(900px 600px at 20% 0%, color-mix(in oklab, var(--accent) 9%, transparent), transparent 70%),
+      linear-gradient(180deg, oklch(0.975 0.006 150), var(--linen));
+    display: flex; align-items: center; justify-content: center; min-height: 100vh;
+    overflow: hidden;
+  }
+  .stage { display: flex; gap: 56px; align-items: flex-start; transform-origin: center; }
+  .col { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .who { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--subtle); height: 30px; }
+  .who strong { color: var(--text); font-weight: 530; }
+  .who select {
+    font: inherit; font-size: 12px; color: var(--text);
+    background: var(--paper); border: 1px solid var(--border); border-radius: 999px;
+    padding: 5px 28px 5px 12px; appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 256 256' fill='%2371706a'%3E%3Cpath d='M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 10px center;
+  }
+
+  /* ————— the device ————— */
+  .device { position: relative; width: 393px; height: 852px; }
+  .device .btn { position: absolute; width: 3px; background: oklch(0.16 0.01 150); border-radius: 2px; }
+  .device .btn.action { left: -3px; top: 148px; height: 30px; }
+  .device .btn.volup  { left: -3px; top: 206px; height: 58px; }
+  .device .btn.voldn  { left: -3px; top: 278px; height: 58px; }
+  .device .btn.power  { right: -3px; top: 230px; height: 92px; }
+  .phone {
+    position: absolute; inset: 0;
+    background: oklch(0.14 0.008 150);
+    border-radius: 58px;
+    padding: 11px;
+    box-shadow:
+      0 0 0 1px oklch(0.30 0.01 150),
+      0 40px 80px -20px rgba(0,0,0,0.45),
+      0 12px 24px -8px rgba(0,0,0,0.25),
+      inset 0 0 0 2px oklch(0.22 0.01 150);
+  }
+  .screen {
+    position: relative; width: 100%; height: 100%;
+    border-radius: 48px; overflow: hidden; background: var(--paper);
+    display: flex; flex-direction: column;
+  }
+  .island {
+    position: absolute; top: 11px; left: 50%; transform: translateX(-50%);
+    width: 126px; height: 37px; border-radius: 20px; background: oklch(0.12 0.005 150); z-index: 5;
+  }
+  .statusbar {
+    height: 54px; flex: none; display: flex; align-items: flex-end; justify-content: space-between;
+    padding: 0 30px 8px 32px; font-size: 15px; font-weight: 600; letter-spacing: -0.01em; color: var(--text);
+    font-variant-numeric: tabular-nums; background: var(--paper);
+  }
+  .statusbar .right { display: inline-flex; gap: 6px; align-items: center; }
+  .statusbar svg { display: block; }
+  .view { flex: 1; min-height: 0; position: relative; }
+  .view iframe { display: block; width: 100%; height: 100%; border: 0; background: var(--paper); }
+  .home {
+    position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%);
+    width: 134px; height: 5px; border-radius: 3px; background: oklch(0.2 0.01 150 / 0.75); z-index: 6; pointer-events: none;
+  }
+  .cap { font-size: 12px; color: var(--faint); }
+
+  /* ————— the side phone: lock screen ————— */
+  .lock {
+    flex: 1; display: flex; flex-direction: column; align-items: center; padding-top: 74px;
+    background: linear-gradient(180deg, oklch(0.985 0.006 160), oklch(0.93 0.02 165));
+  }
+  .lk-time { font-size: 82px; font-weight: 300; letter-spacing: -0.03em; line-height: 1; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .lk-date { margin-top: 10px; font-size: 16px; color: var(--text); }
+  .lk-who { margin-top: 6px; font-size: 12px; color: var(--subtle); }
+  .banners { position: absolute; left: 12px; right: 12px; bottom: 40px; display: flex; flex-direction: column; gap: 8px; }
+  .banner {
+    display: flex; gap: 12px; align-items: flex-start;
+    background: oklch(1 0 0 / 0.72); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+    border-radius: 22px; padding: 12px 14px;
+    box-shadow: 0 1px 0 oklch(1 0 0 / 0.6) inset, 0 8px 24px -12px rgba(0,0,0,0.25);
+    animation: bn-in 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  @keyframes bn-in { from { opacity: 0; transform: translateY(14px) scale(0.98); } }
+  .banner .app { width: 38px; height: 38px; border-radius: 10px; background: var(--ink); display: grid; place-items: center; flex: none; color: var(--paper); }
+  .banner .app svg { width: 22px; height: 22px; }
+  .banner .txt { min-width: 0; flex: 1; }
+  .banner .row1 { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+  .banner .row1 b { font-weight: 600; color: var(--ink); }
+  .banner .row1 time { color: var(--subtle); font-size: 12px; flex: none; }
+  .banner .body { font-size: 13px; color: var(--text); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .banner .app-name { font-size: 11px; color: var(--subtle); margin-bottom: 1px; letter-spacing: 0.02em; }
 </style>
 </head>
 <body>
-<div>
-  <div class="frame"><iframe src="index.html"></iframe></div>
-  <div class="cap">390 × 760 · iPhone-ish</div>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><g id="brand-lockup">
+<path d="M0.117638 4.45489C-0.0392129 4.38767 -0.0392126 4.1653 0.117639 4.09808L0.45373 3.95404C2.02653 3.27998 3.27977 2.02674 3.95383 0.453942L4.09787 0.117852C4.16509 -0.0389993 4.38745 -0.038999 4.45467 0.117852L4.6293 0.525305C5.28372 2.0523 6.50046 3.26903 8.02745 3.92346L8.4349 4.09808C8.59175 4.1653 8.59175 4.38767 8.4349 4.45489L8.02745 4.62951C6.50046 5.28394 5.28372 6.50067 4.6293 8.02766L4.45467 8.43512C4.38745 8.59197 4.16509 8.59197 4.09787 8.43512L3.92324 8.02766C3.26882 6.50067 2.05208 5.28393 0.52509 4.62951L0.117638 4.45489Z"/>
+<path d="M8.84134 4.45467C8.68448 4.38745 8.68448 4.16509 8.84134 4.09787L9.17743 3.95383C10.7502 3.27977 12.0035 2.02653 12.6775 0.453729L12.8216 0.117638C12.8888 -0.0392129 13.1111 -0.0392126 13.1784 0.117639L13.353 0.525091C14.0074 2.05208 15.2242 3.26882 16.7511 3.92325L17.1586 4.09787C17.3155 4.16509 17.3155 4.38745 17.1586 4.45467L16.7511 4.6293C15.2242 5.28372 14.0074 6.50046 13.353 8.02745L13.1784 8.4349C13.1111 8.59175 12.8888 8.59175 12.8216 8.4349L12.6469 8.02745C11.9925 6.50046 10.7758 5.28372 9.24879 4.6293L8.84134 4.45467Z"/>
+<path d="M17.5649 4.45467C17.408 4.38745 17.408 4.16509 17.5649 4.09787L17.901 3.95383C19.4738 3.27977 20.727 2.02653 21.4011 0.453729L21.5451 0.117638C21.6123 -0.0392129 21.8347 -0.0392126 21.9019 0.117639L22.0765 0.525091C22.731 2.05208 23.9477 3.26882 25.4747 3.92325L25.8821 4.09787C26.039 4.16509 26.039 4.38745 25.8821 4.45467L25.4747 4.6293C23.9477 5.28372 22.731 6.50046 22.0765 8.02745L21.9019 8.4349C21.8347 8.59175 21.6123 8.59175 21.5451 8.4349L21.3705 8.02745C20.7161 6.50046 19.4993 5.28372 17.9723 4.6293L17.5649 4.45467Z"/>
+<path d="M0.117638 13.1785C-0.0392129 13.1113 -0.0392126 12.8889 0.117639 12.8217L0.45373 12.6776C2.02653 12.0036 3.27977 10.7503 3.95383 9.17754L4.09787 8.84144C4.16509 8.68459 4.38745 8.68459 4.45467 8.84144L4.6293 9.2489C5.28372 10.7759 6.50046 11.9926 8.02745 12.6471L8.4349 12.8217C8.59175 12.8889 8.59175 13.1113 8.4349 13.1785L8.02745 13.3531C6.50046 14.0075 5.28372 15.2243 4.6293 16.7513L4.45467 17.1587C4.38745 17.3156 4.16509 17.3156 4.09787 17.1587L3.92324 16.7513C3.26882 15.2243 2.05208 14.0075 0.52509 13.3531L0.117638 13.1785Z"/>
+<path d="M8.84123 13.1785C8.68438 13.1113 8.68438 12.8889 8.84123 12.8217L9.17732 12.6776C10.7501 12.0036 12.0034 10.7503 12.6774 9.17754L12.8215 8.84144C12.8887 8.68459 13.111 8.68459 13.1783 8.84144L13.3529 9.2489C14.0073 10.7759 15.2241 11.9926 16.751 12.6471L17.1585 12.8217C17.3153 12.8889 17.3153 13.1113 17.1585 13.1785L16.751 13.3531C15.2241 14.0075 14.0073 15.2243 13.3529 16.7513L13.1783 17.1587C13.111 17.3156 12.8887 17.3156 12.8215 17.1587L12.6468 16.7513C11.9924 15.2243 10.7757 14.0075 9.24868 13.3531L8.84123 13.1785Z"/>
+<path d="M0.117638 21.9021C-0.0392129 21.8349 -0.0392126 21.6125 0.117639 21.5453L0.45373 21.4012C2.02653 20.7272 3.27977 19.4739 3.95383 17.9011L4.09787 17.565C4.16509 17.4082 4.38745 17.4082 4.45467 17.565L4.6293 17.9725C5.28372 19.4995 6.50046 20.7162 8.02745 21.3706L8.4349 21.5453C8.59175 21.6125 8.59175 21.8349 8.4349 21.9021L8.02745 22.0767C6.50046 22.7311 5.28372 23.9479 4.6293 25.4748L4.45467 25.8823C4.38745 26.0392 4.16509 26.0392 4.09787 25.8823L3.92324 25.4748C3.26882 23.9479 2.05208 22.7311 0.52509 22.0767L0.117638 21.9021Z"/>
+<path d="M31.9374 21.1834V6.8713H49.4728V10.1512H35.2215V12.3974H48.9951V15.6574H35.2215V21.1834H31.9374Z"/>
+<path d="M61.2075 6.8713L70.025 21.1834H66.2432L64.5116 18.4999H53.6639L51.972 21.1834H48.1903L56.9879 6.8713H61.2075ZM59.3166 10.1512H58.8987L55.5946 15.22H62.6406L59.3166 10.1512Z"/>
+<path d="M89.0363 11.8805H85.7522C85.7522 11.0457 85.0356 10.1512 83.5229 10.1512H74.4268C73.5112 10.1512 72.715 10.6282 72.715 11.5426C72.715 12.1986 73.3519 12.5763 74.4865 12.5763H84.5181C87.0459 12.5763 89.0363 14.0671 89.0363 16.7308C89.0363 19.1956 87.0459 21.1834 84.5778 21.1834H74.168C71.4212 21.1834 69.5304 18.5595 69.5304 16.1742H72.8145C72.8145 16.9892 73.4515 17.9036 75.0637 17.9036H83.9608C84.9759 17.9036 85.8119 17.3072 85.8119 16.5519C85.8119 15.7369 85.0953 15.5778 83.9608 15.5778H74.1481C71.68 15.5778 69.5304 14.0274 69.5304 11.324C69.5304 8.8591 71.5208 6.8713 73.9889 6.8713H84.3987C87.1454 6.8713 89.0363 9.49519 89.0363 11.8805Z"/>
+<path d="M109.534 11.8805H106.249C106.249 11.0457 105.533 10.1512 104.02 10.1512H94.924C94.0084 10.1512 93.2123 10.6282 93.2123 11.5426C93.2123 12.1986 93.8492 12.5763 94.9838 12.5763H105.015C107.543 12.5763 109.534 14.0671 109.534 16.7308C109.534 19.1956 107.543 21.1834 105.075 21.1834H94.6653C91.9185 21.1834 90.0276 18.5595 90.0276 16.1742H93.3118C93.3118 16.9892 93.9487 17.9036 95.561 17.9036H104.458C105.473 17.9036 106.309 17.3072 106.309 16.5519C106.309 15.7369 105.593 15.5778 104.458 15.5778H94.6454C92.1773 15.5778 90.0276 14.0274 90.0276 11.324C90.0276 8.8591 92.018 6.8713 94.4861 6.8713H104.896C107.643 6.8713 109.534 9.49519 109.534 11.8805Z"/>
+<path d="M110.933 21.1834V6.8713H128.946V10.1512H114.217V12.3974H128.469V15.6574H114.217V17.9036H128.946V21.1834H110.933Z"/>
+<path d="M130.148 6.8713H149.255V10.1512H141.294V21.1834H138.01V10.1512H130.148V6.8713Z"/>
+<path d="M155.84 14.4846C154.938 14.4846 154.175 14.3255 153.551 14.0075C152.927 13.6894 152.456 13.2521 152.138 12.6955C151.819 12.1257 151.66 11.4764 151.66 10.7475C151.66 10.0054 151.819 9.33616 152.138 8.73983C152.456 8.13024 152.934 7.65979 153.571 7.32849C154.208 6.99719 154.964 6.83154 155.84 6.83154C156.729 6.83154 157.479 6.99719 158.089 7.32849C158.713 7.65979 159.184 8.13024 159.502 8.73983C159.834 9.33616 160 10.0054 160 10.7475C160 11.4764 159.834 12.1257 159.502 12.6955C159.184 13.2521 158.713 13.6894 158.089 14.0075C157.479 14.3255 156.729 14.4846 155.84 14.4846ZM155.84 13.7292C156.915 13.7292 157.738 13.4708 158.308 12.954C158.892 12.4371 159.184 11.7016 159.184 10.7475C159.184 10.0982 159.051 9.53495 158.786 9.05787C158.52 8.5808 158.136 8.21637 157.631 7.96459C157.127 7.69955 156.53 7.56703 155.84 7.56703C155.124 7.56703 154.513 7.69955 154.009 7.96459C153.518 8.21637 153.14 8.58743 152.874 9.07775C152.609 9.55482 152.476 10.1114 152.476 10.7475C152.476 11.7016 152.768 12.4371 153.352 12.954C153.936 13.4708 154.765 13.7292 155.84 13.7292ZM157.95 12.1986H156.935L156.298 11.2643H154.805V12.1986H153.929V9.09763H157.054C157.32 9.09763 157.545 9.19039 157.731 9.37592C157.917 9.5482 158.01 9.74035 158.01 9.95238V10.3698C158.01 10.5553 157.937 10.7342 157.791 10.9065C157.645 11.0788 157.479 11.1848 157.293 11.2246L157.95 12.1986ZM157.154 10.1909V10.171C157.154 10.012 157.061 9.9325 156.875 9.9325H154.805V10.4096H156.875C157.061 10.4096 157.154 10.3367 157.154 10.1909Z"/>
+</g></defs></svg>
+
+<div class="stage" id="stage">
+  <div class="col">
+    <div class="who"><strong>Reem</strong> · Delos Financial ·
+      <select id="enter" aria-label="Enter as">
+        <option value="dashboard">in Prime</option>
+        <option value="onboarding">at the front door</option>
+        <option value="hub">waiting on review</option>
+        <option value="ib-onboard">Karim · becoming an IB</option>
+        <option value="ib-overview">Karim · in the IB portal</option>
+      </select>
+    </div>
+    <div class="device">
+      <span class="btn action"></span><span class="btn volup"></span><span class="btn voldn"></span><span class="btn power"></span>
+      <div class="phone"><div class="screen">
+        <div class="island"></div>
+        <div class="statusbar"><span class="t">9:41</span><span class="right"><svg width="16" height="16" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M168,72V200a8,8,0,0,1-16,0V72a8,8,0,0,1,16,0Zm32-48a8,8,0,0,0-8,8V200a8,8,0,0,0,16,0V32A8,8,0,0,0,200,24Zm-80,80a8,8,0,0,0-8,8v88a8,8,0,0,0,16,0V112A8,8,0,0,0,120,104ZM80,144a8,8,0,0,0-8,8v48a8,8,0,0,0,16,0V152A8,8,0,0,0,80,144ZM40,184a8,8,0,0,0-8,8v8a8,8,0,0,0,16,0v-8A8,8,0,0,0,40,184Z"/></svg><svg width="16" height="16" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M140,204a12,12,0,1,1-12-12A12,12,0,0,1,140,204ZM237.08,87A172,172,0,0,0,18.92,87,8,8,0,0,0,29.08,99.37a156,156,0,0,1,197.84,0A8,8,0,0,0,237.08,87ZM205,122.77a124,124,0,0,0-153.94,0A8,8,0,0,0,61,135.31a108,108,0,0,1,134.06,0,8,8,0,0,0,11.24-1.3A8,8,0,0,0,205,122.77Zm-32.26,35.76a76.05,76.05,0,0,0-89.42,0,8,8,0,0,0,9.42,12.94,60,60,0,0,1,70.58,0,8,8,0,1,0,9.42-12.94Z"/></svg><svg width="20" height="20" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M200,56H32A24,24,0,0,0,8,80v96a24,24,0,0,0,24,24H200a24,24,0,0,0,24-24V80A24,24,0,0,0,200,56Zm8,120a8,8,0,0,1-8,8H32a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H200a8,8,0,0,1,8,8ZM184,96v64a8,8,0,0,1-16,0V96a8,8,0,0,1,16,0Zm-40,0v64a8,8,0,0,1-16,0V96a8,8,0,0,1,16,0Zm-40,0v64a8,8,0,0,1-16,0V96a8,8,0,0,1,16,0ZM64,96v64a8,8,0,0,1-16,0V96a8,8,0,0,1,16,0Zm192,0v64a8,8,0,0,1-16,0V96a8,8,0,0,1,16,0Z"/></svg></span></div>
+        <div class="view"><iframe id="app" src="index.html" title="Prime"></iframe></div>
+        <div class="home"></div>
+      </div></div>
+    </div>
+    <div class="cap">Web view · 393 × 852</div>
+  </div>
+
+  <div class="col">
+    <div class="who"><strong>Reem's phone</strong> · lock screen · Prime's notifications land here</div>
+    <div class="device">
+      <span class="btn action"></span><span class="btn volup"></span><span class="btn voldn"></span><span class="btn power"></span>
+      <div class="phone"><div class="screen">
+        <div class="island"></div>
+        <div class="lock">
+          <div class="lk-time" id="lkTime">9:41</div>
+          <div class="lk-date" id="lkDate">Wednesday, 3 September</div>
+          <div class="lk-who">Reem's phone</div>
+        </div>
+        <div class="banners" id="banners"></div>
+        <div class="home"></div>
+      </div></div>
+    </div>
+    <div class="cap">Every state change is one notification</div>
+  </div>
 </div>
+
+<script>
+(function () {
+  "use strict";
+  var app = document.getElementById("app");
+  var enter = document.getElementById("enter");
+
+  // fit the stage to the window, both axes
+  function fit() {
+    var st = document.getElementById("stage");
+    var w = st.scrollWidth || 900, h = st.scrollHeight || 920;
+    var s = Math.min(1, (window.innerWidth - 48) / w, (window.innerHeight - 40) / h);
+    st.style.transform = "scale(" + s + ")";
+  }
+  window.addEventListener("resize", fit);
+  setTimeout(fit, 50);
+
+  // the entry selector drives the app the way its own demo bar does, by
+  // clicking the demo jump inside the iframe (same origin), so persona and
+  // journey seeding stay in one place
+  function jump(id) {
+    var w = app.contentWindow, d = w && w.document;
+    if (!d) return;
+    var b = d.querySelector('[data-jump="' + id + '"]');
+    if (b) b.click(); else if (w.App) w.App.go(id);
+  }
+  enter.addEventListener("change", function () { jump(enter.value); });
+  app.addEventListener("load", function () { if (enter.value !== "dashboard") setTimeout(function () { jump(enter.value); }, 200); });
+
+  // lock screen clock
+  function clock() {
+    var d = new Date();
+    var hh = d.getHours() % 12 || 12, mm = ("0" + d.getMinutes()).slice(-2);
+    document.getElementById("lkTime").textContent = hh + ":" + mm;
+    document.getElementById("lkDate").textContent = d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+  }
+  clock(); setInterval(clock, 15000);
+
+  // mirror Prime's notifications as banners: newest four, only ones that
+  // arrived while this page has been open (the seeded history stays quiet)
+  var seen = null;
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function mirror() {
+    var w = app.contentWindow;
+    var ns = w && w.Data && w.Data.state && w.Data.state.notifs;
+    if (!ns) return;
+    if (seen === null) { seen = {}; ns.forEach(function (n) { seen[n.id] = 1; }); return; }
+    var fresh = ns.filter(function (n) { return !seen[n.id]; });
+    if (!fresh.length) return;
+    var host = document.getElementById("banners");
+    fresh.reverse().forEach(function (n) {
+      seen[n.id] = 1;
+      var el = document.createElement("div");
+      el.className = "banner";
+      el.innerHTML = '<div class="app"><svg viewBox="-1 -1 28 28" fill="currentColor"><use href="#brand-lockup"/></svg></div>' +
+        '<div class="txt"><div class="app-name">PRIME</div><div class="row1"><b>' + esc(n.title) + "</b><time>now</time></div>" +
+        (n.body ? '<div class="body">' + esc(n.body) + "</div>" : "") + "</div>";
+      host.appendChild(el);
+      while (host.children.length > 4) host.removeChild(host.firstChild);
+    });
+  }
+  setInterval(mirror, 700);
+})();
+</script>
 </body>
 </html>

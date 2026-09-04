@@ -1251,36 +1251,38 @@ body:not(.demo-on) .section:has(> .demo-strip) { display: none; }
   .page-head h1 { font-size: 24px; }
   .bal-value { font-size: 32px; }
 
-  /* the bottom tab bar — same items as the sidebar, persona-aware */
+  /* the bottom tab bar — icons only (Hamis 2026-09-04), every target an
+     obvious 48px pill; the active tab is the same paper rect the sidebar
+     uses. Labels live in aria-label, so screen readers still hear them. */
   .mobile-nav {
     display: flex;
     position: fixed;
     left: 0; right: 0;
     bottom: var(--demobar-h, 40px);
-    height: 56px;
+    height: 64px;
     z-index: 40;
-    background: var(--bg);
+    background: var(--bg-sunken);
     box-shadow: 0 -1px 0 var(--table-rule);
-    align-items: stretch;
-    padding: 0 4px;
+    align-items: center;
+    justify-content: space-evenly;
+    padding: 0 8px;
   }
   .mnav-item {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
+    width: 48px; height: 48px;
+    flex: none;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 3px;
-    background: none;
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--surface) 55%, transparent);
     border: none;
-    font: inherit;
-    font-size: 11px;
-    color: var(--text-faint);
+    color: var(--text-subtle);
     cursor: pointer;
+    transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
   }
-  .mnav-item span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .mnav-item.active { color: var(--text-strong); }
+  .mnav-item span { display: none; }
+  .mnav-item:active { transform: scale(0.97); }
+  .mnav-item.active { background: var(--surface); color: var(--text-strong); box-shadow: var(--elev-1); }
   .mnav-item .icon { flex: none; }
 
   /* tables scroll themselves (base .table + per-table computed min-width);
@@ -1289,6 +1291,9 @@ body:not(.demo-on) .section:has(> .demo-strip) { display: none; }
   /* IB stat strips go single column on a phone */
   .stat-strip { grid-template-columns: 1fr; row-gap: 4px; }
   .stat-strip > * { border-left: none; padding: 10px 0; }
+
+  /* toasts clear the tab bar */
+  .toast { bottom: calc(var(--demobar-h, 40px) + 64px + 14px); max-width: calc(100vw - 32px); }
 
   /* balance cards stack two-up; tighter metrics so the money never clips */
   .bal-cards { grid-template-columns: repeat(2, 1fr); gap: 10px; }

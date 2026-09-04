@@ -130,8 +130,8 @@
       });
     });
     return items.map(function (it) {
-      return '<button class="mnav-item' + (current === it.id ? " active" : "") + '" data-nav="' + it.id + '" type="button">' +
-        icon(it.icon, 18) + "<span>" + UI.esc(it.label) + "</span></button>";
+      return '<button class="mnav-item' + (current === it.id ? " active" : "") + '" data-nav="' + it.id + '" type="button" aria-label="' + UI.esc(it.label) + '"' +
+        (current === it.id ? ' aria-current="page"' : "") + ">" + icon(it.icon, 22) + "<span>" + UI.esc(it.label) + "</span></button>";
     }).join("");
   }
 
