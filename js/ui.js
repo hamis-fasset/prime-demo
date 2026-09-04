@@ -124,7 +124,7 @@
     if (SUFFIX[cur]) {
       return '<span class="money">' + intH + decH + '<span class="money-ccy">' + UI.esc(label) + "</span></span>";
     }
-    return '<span class="money"><span class="money-sym">' + UI.esc(label) + "</span>" + intH + decH + "</span>";
+    return '<span class="money"><span class="money-sym' + (label !== cur ? " glyph" : "") + '">' + UI.esc(label) + "</span>" + intH + decH + "</span>";
   };
 
   // UI.digits(el, text, opts) — per-digit assembly for a NON-MONEY figure: a

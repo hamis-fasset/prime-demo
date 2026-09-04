@@ -51,6 +51,7 @@
   var sig = {};             // last painted html per region — kills double paints
 
   var CURS = ["AED", "USD", "EUR", "BHD", "USDT"];
+  function order() { var o = Data.state.balOrder; return o && o.length === CURS.length ? o : CURS; }
 
   // ————— foundation helpers, with a graceful floor —————
 
@@ -102,7 +103,7 @@
     var fr = Data.state.firstRun;
     var bal = fr ? 0 : (Data.state.bal[cur] || 0);
 
-    return '<button class="bal-card" data-bal="' + UI.esc(cur) + '" type="button">' +
+    return '<button class="bal-card" data-bal="' + UI.esc(cur) + '" draggable="true" type="button">' +
       '<span class="bc-name">' + ccy(cur, { label: false }) + UI.esc(Data.curName ? Data.curName(cur) : cur) + "</span>" +
       (live
         ? '<span class="bc-amt">' + UI.moneyHero(cur, bal, { symbol: true }) + "</span>"
@@ -111,7 +112,63 @@
   }
 
   function stripHtml() {
-    return CURS.map(currencyCell).join("");
+    return order().map(currencyCell).join("");
+  }
+
+  // ————— reorder: drag a card on desktop, or the Reorder drawer anywhere —————
+  // Both write Data.setBalOrder; the Balances pills follow the same order.
+
+  var dragCur = null;
+  function wireDnd(node) {
+    if (!node) return;
+    node.querySelectorAll(".bal-card").forEach(function (c) {
+      if (c.__dbDnd) return;
+      c.__dbDnd = true;
+      c.addEventListener("dragstart", function () { dragCur = c.getAttribute("data-bal"); c.classList.add("dragging"); });
+      c.addEventListener("dragend", function () { c.classList.remove("dragging"); dragCur = null; });
+      c.addEventListener("dragover", function (e) { e.preventDefault(); c.classList.add("drop-target"); });
+      c.addEventListener("dragleave", function () { c.classList.remove("drop-target"); });
+      c.addEventListener("drop", function (e) {
+        e.preventDefault();
+        c.classList.remove("drop-target");
+        var to = c.getAttribute("data-bal");
+        if (!dragCur || dragCur === to) return;
+        var o = order().slice();
+        o.splice(o.indexOf(dragCur), 1);
+        o.splice(o.indexOf(to), 0, dragCur);
+        Data.setBalOrder(o);
+      });
+    });
+  }
+
+  function openReorder() {
+    var h = UI.drawer("Reorder balances", "", {
+      width: 420,
+      foot: '<button class="btn btn-secondary" id="roClose" type="button">Close</button>'
+    });
+    function paintList() {
+      var o = order();
+      h.body.innerHTML = '<div class="ro-list">' + o.map(function (cur, i) {
+        return '<div class="ro-row">' +
+          '<span class="ro-name">' + ccy(cur, { label: false }) + UI.esc(Data.curName(cur)) + "</span>" +
+          '<span class="ro-btns">' +
+            '<button class="icon-btn" data-ro="up" data-cur="' + cur + '" type="button" aria-label="Move up"' + (i === 0 ? " disabled" : "") + ">" + icon("chevronDown", 14) + "</button>" +
+            '<button class="icon-btn" data-ro="down" data-cur="' + cur + '" type="button" aria-label="Move down"' + (i === o.length - 1 ? " disabled" : "") + ">" + icon("chevronDown", 14) + "</button>" +
+          "</span></div>";
+      }).join("") + "</div>";
+      h.body.querySelectorAll("[data-ro]").forEach(function (b) {
+        b.addEventListener("click", function () {
+          var o2 = order().slice(), cur = b.getAttribute("data-cur"), i = o2.indexOf(cur);
+          var j = b.getAttribute("data-ro") === "up" ? i - 1 : i + 1;
+          if (j < 0 || j >= o2.length) return;
+          o2.splice(i, 1); o2.splice(j, 0, cur);
+          Data.setBalOrder(o2);
+          paintList();
+        });
+      });
+    }
+    paintList();
+    h.el.querySelector("#roClose").addEventListener("click", h.close);
   }
 
   // ————— recent activity: the no-lines table —————
@@ -200,6 +257,7 @@
     bind(node, "[data-totcur]", function (e) {
       Data.setTotalCur(e.currentTarget.getAttribute("data-totcur"));
     });
+    bind(node, "#dbReorder", openReorder);
     bind(node, "[data-bal]", function (e) {
       var cur = e.currentTarget.getAttribute("data-bal");
       var b = App.screen("balance");
@@ -263,7 +321,8 @@
     h += "</div>";
 
     // — per-currency balances: tinted identity cards, whole card taps through —
-    h += '<div class="section"><div class="section-head"><h2>Balances</h2></div>' +
+    h += '<div class="section"><div class="section-head"><h2>Balances</h2>' +
+      '<button class="link" id="dbReorder" type="button">Reorder</button></div>' +
       '<div class="bal-cards" id="dbStrip">' + stripHtml() + "</div></div>";
 
     // — the feed: every money event, one list, rows open the details drawer —
@@ -284,6 +343,7 @@
     // choreography (title → hero → rates → strips → table) applies
     el.insertAdjacentHTML("beforeend", h);
     wireRegion(el);
+    wireDnd(el);
 
     // the paint signatures start here, so the first patch only touches what
     // a confirmed event actually changed
@@ -322,6 +382,8 @@
     }
 
     paint("dbStrip", stripHtml(), "strip");
+    wireDnd(document.getElementById("dbStrip"));
+    requestAnimationFrame(function () { wireDnd(document.getElementById("dbStrip")); });
     paint("dbActivity", activityHtml(), "act");
     return true;
   }

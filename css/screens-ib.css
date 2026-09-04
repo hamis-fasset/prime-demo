@@ -1,10 +1,14 @@
 /* ————————————————————————————————————————————————
    Fasset Prime — IB portal + IB onboarding screen styles.
-   Namespaced: .ib-* (portal) · .ibj-* (journey) · .ibw-* (wizard drawer).
+   Namespaced: .ib-* (portal) · .ibj-* (journey hub) · .ibw-* (wizard view).
    Everything else comes from the foundation (app.css) and, for the
-   journey furniture, the shared .ob- and .hub- grammar — one journey
-   language across the product, deliberately not forked. The trade
-   details drawer reuses the shared .txd-* grammar from screens-trade.css.
+   journey furniture, the shared .ob-, .hub- and .wiz- grammar in
+   screens-onboarding.css — one journey language across the product,
+   deliberately not forked. The wizard is a view of the ib-onboard
+   screen (not a drawer, 2026-09-04): it borrows kyc.js's .wiz-grid /
+   .wiz-spine / .wiz-step and adds only what kyc does not have, a ghost
+   Back at the top-left of the sheet. The trade details drawer reuses
+   the shared .txd-* grammar from screens-trade.css.
    ———————————————————————————————————————————————— */
 
 /* — overview strip: four open figures, not five. The foundation strip
@@ -30,6 +34,18 @@
 /* — journey step list on the state card: a dot and a word each — */
 .ibj-steps { margin-top: 24px; display: flex; flex-direction: column; gap: 12px; text-align: left; }
 
+/* — wizard view: the way back sits top-left of the sheet, above the
+     spine, never in the bottom row. The ghost's own 10px padding is
+     pulled back so its chevron sits on the content edge, and the row
+     gives back the top padding it would otherwise add to the sheet. — */
+.ibw-top { display: flex; margin: -8px 0 16px -10px; }
+.ibw-top .btn-ghost { gap: 4px; }
+.ibw-top .btn-ghost .icon { color: inherit; }
+
+/* — wizard view: a step past the furthest one reached is inert. It keeps
+     its place in the spine and loses its affordance, nothing else. — */
+.wiz-step.ibw-ahead, .wiz-step.ibw-ahead:hover { background: transparent; cursor: default; opacity: 0.55; }
+
 /* — wizard: the payout-account choice — */
 .ibw-choice {
   display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
@@ -42,9 +58,17 @@
 .ibw-choice .wc-name { display: block; font-size: var(--text-13); color: var(--text-strong); }
 
 /* — wizard: attached-document row and the agreement acknowledgment — */
-.ibw-attach { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+.ibw-attach { display: flex; align-items: center; gap: 10px; margin-top: 4px; flex-wrap: wrap; }
 .ibw-ack {
   display: flex; gap: 9px; align-items: flex-start; margin-top: 16px;
   font-size: var(--text-13); color: var(--text-subtle); line-height: 1.5; cursor: pointer;
 }
 .ibw-ack input { margin: 2px 0 0; accent-color: var(--ink); flex: none; }
+
+/* — phone layer (≤600px): the sheet's padding drops to 20px (shared
+     .ob-sheet rule), so the pulled-back ghost still lands on the content
+     edge; the grid is already one column and the spine a sideways strip
+     (shared .wiz-* rules). Nothing here truncates. — */
+@media (max-width: 600px) {
+  .ibw-top { margin: -6px 0 12px -10px; }
+}

@@ -46,6 +46,11 @@
    accepted types and the file name, nothing else. The review's
    primary action is never a disabled button with a warning: if a
    step is incomplete the button takes you to it.
+
+   2026-09-04, later (Hamis): Back left the bottom CTA row. It is a
+   ghost control at the top-left of the sheet (#wizNav, above the
+   spine and the body), repainted in place with every step change,
+   and absent on the first step. The CTA row holds the primary only.
    ———————————————————————————————————————————————— */
 (function () {
   "use strict";
@@ -404,8 +409,8 @@
           ? '<button class="btn btn-primary" id="wizToFlagged" type="button">Go to the flagged steps</button>'
           : '<button class="btn btn-primary" id="wizToHub" type="button">See your status</button>') + "</div>";
     } else {
+      // the primary only; Back is the ghost control at the sheet's top-left
       h += '<div class="ob-cta-row">' +
-        (W.step > 0 ? '<button class="btn btn-secondary" id="wizBack" type="button">Back</button>' : "") +
         '<button class="btn btn-primary" id="wizSave" type="button">Save and continue</button>' +
         (W.lastSaved ? '<span class="wiz-saved">Saved ' + UI.esc(UI.fmtTs(W.lastSaved)) + "</span>" : "") +
         "</div>";
@@ -556,7 +561,7 @@
   }
 
   function skeletonHtml() {
-    return '<div class="bare-sheet ob-sheet bare-sheet-wide"><div class="wiz-grid"><div>' +
+    return '<div class="bare-sheet ob-sheet bare-sheet-wide"><div class="ob-back-row"></div><div class="wiz-grid"><div>' +
       UI.skel("100%", "30px") + '<div class="mt-8">' + UI.skel("100%", "30px") + "</div>" +
       '<div class="mt-8">' + UI.skel("100%", "30px") + "</div></div><div>" +
       UI.skel("60%", "30px") + '<div class="mt-16">' + UI.skel("100%", "56px") + "</div>" +
@@ -600,10 +605,26 @@
     return notesHtml() + (W.step >= W.steps.length ? reviewHtml() : stepBodyHtml());
   }
 
+  // the sheet's top-left: Back, as a ghost control, on every step but the
+  // first (the review counts as a step here, so it can step back too).
+  // The row is always present so the grid never jumps when Back appears.
+  function navInner() {
+    if (W.step <= 0) return "";
+    return '<button class="btn btn-ghost ob-back" id="wizBack" type="button">' + icon("chevronLeft", 14) + "Back</button>";
+  }
+
+  function wireNav(nav) {
+    if (!nav) return;
+    var back = nav.querySelector("#wizBack");
+    if (back) back.addEventListener("click", function () { W.step--; W.errs = {}; paint(); });
+  }
+
   function renderBody(el) {
     ensure();
 
-    var h = '<div class="bare-sheet ob-sheet bare-sheet-wide"><div class="wiz-grid" id="wizGrid">' +
+    var h = '<div class="bare-sheet ob-sheet bare-sheet-wide">' +
+      '<div class="ob-back-row" id="wizNav">' + navInner() + "</div>" +
+      '<div class="wiz-grid" id="wizGrid">' +
       spineHtml() +
       '<div class="wiz-body">' + bodyHtml() + "</div>" +
       "</div></div>";
@@ -618,6 +639,7 @@
       "</div>";
 
     el.insertAdjacentHTML("beforeend", h);
+    wireNav(el.querySelector("#wizNav"));
     wireSpine(el.querySelector(".wiz-spine"));
     wireBody(el.querySelector(".wiz-body"));
     wireDemo(el);
@@ -632,6 +654,9 @@
     var spine = grid && grid.querySelector(".wiz-spine");
     var body = grid && grid.querySelector(".wiz-body");
     if (!spine || !body) { App.rerender(); return; }   // not our DOM any more
+    // Back appears or disappears without animating, like the spine marker
+    var nav = document.getElementById("wizNav");
+    if (nav) { nav.innerHTML = navInner(); wireNav(nav); }
     spine.innerHTML = spineInner();
     UI.repaint(body, bodyHtml());
     wireSpine(spine);
@@ -756,8 +781,6 @@
         });
       }
 
-      var back = body.querySelector("#wizBack");
-      if (back) back.addEventListener("click", function () { W.step--; W.errs = {}; paint(); });
       var save = body.querySelector("#wizSave");
       if (save) save.addEventListener("click", saveStep);
     }

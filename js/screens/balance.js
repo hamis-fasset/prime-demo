@@ -33,7 +33,8 @@
   // ————— currency pills: this screen is the home of every balance —————
 
   function pillsHtml() {
-    return '<div class="bal-pills">' + CURS.map(function (c) {
+    var o = Data.state.balOrder && Data.state.balOrder.length === CURS.length ? Data.state.balOrder : CURS;
+    return '<div class="bal-pills">' + o.map(function (c) {
       return '<button class="bal-pill' + (c === CUR ? " active" : "") + '" data-balcur="' + c + '" type="button">' +
         ccy(c) + "</button>";
     }).join("") + "</div>";

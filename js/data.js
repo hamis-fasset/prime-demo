@@ -28,7 +28,7 @@
 
   // display vocabulary: proper names title screens, proper symbols sit in the
   // money where one exists in latin script (the rest read their code)
-  var CUR_NAMES = { AED: "UAE dirham", USD: "US dollar", EUR: "Euro", BHD: "Bahraini dinar", USDT: "Tether USD" };
+  var CUR_NAMES = { AED: "UAE dirham", USD: "US dollar", EUR: "Euro", BHD: "Bahraini dinar", USDT: "Tether" };
   var CUR_SYMBOLS = { USD: "$", EUR: "€" };
   var TEST_AMT = 9.37;        // demo test-transfer amount (random per test in production)
 
@@ -88,6 +88,7 @@
     persona: "client",                // client | ib — which portal the demo shows
     pairOrder: ["USDT/AED", "USDT/USD", "USDT/EUR", "USDT/BHD"],  // client-pinned order (drag to reorder)
     totalCur: "AED",                  // total-balance denomination: AED | USDT (client display pref)
+    balOrder: ["AED", "USD", "EUR", "BHD", "USDT"],  // the client's balance-card order (drag or Reorder)
     windowCopy: "30min",              // "30min" | "hours" (OQ9 copy toggle)
     stale: false,                     // balance feed interrupted
     firstRun: false,                  // zero-balance first-run state
@@ -606,6 +607,12 @@
     setPairOrder: function (order) {
       var valid = order.filter(function (id) { return REF[id] !== undefined; });
       if (valid.length) { S.pairOrder = valid; emit("pins"); }
+    },
+    // balance-card order — a display pref, same bucket as pins. Dashboard cards
+    // and the Balances pills both follow it.
+    setBalOrder: function (order) {
+      var valid = order.filter(function (c) { return CUR_NAMES[c]; });
+      if (valid.length === Object.keys(CUR_NAMES).length) { S.balOrder = valid; emit("pins"); }
     },
     // total-balance denomination toggle — a display pref, same bucket as pins
     setTotalCur: function (cur) {

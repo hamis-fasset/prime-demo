@@ -31,13 +31,22 @@
    Data API: Data.setJourney · Data.state.user · UI.recoveryCodes.
 
    2026-09-04 (Hamis taste pass): the landing is a front door, not a
-   pitch. The lockup is in the zone header; the sheet is one headline,
-   one ink action, Log in as the quiet secondary. The reference-rate
-   specimen, the three feature points, the welcome line and the legal
-   footnote are gone. Every step lost its subtitle unless the subtitle
-   was a fact; choice rows lost their icons and their explanations.
-   Errors, the rate-limit note and the demo prefills still patch in
-   place; only moving between steps repaints the page.
+   pitch. Every step lost its subtitle unless the subtitle was a fact;
+   choice rows lost their icons and their explanations. Errors, the
+   rate-limit note and the demo prefills still patch in place; only
+   moving between steps repaints the page.
+
+   2026-09-04, later (Hamis): the front door is one viewport, split.
+   Left, an ink panel carrying a generated contour field (SVG, drawn
+   here, no image) with the lockup, the Prime tag and a large Log in
+   over it. Right, warm paper: the one headline, the one ink action,
+   a copyright line. The door renders as .ob-door, absolutely
+   positioned over the zone's header (the zone stays "auth" because
+   the #bareRight sentinel below is what restarts the flow), so every
+   other step keeps the bare header and the floating sheet unchanged.
+   Back moved out of the CTA row on every step: it is a ghost control
+   at the top-left of the sheet (.ob-back-row), and the first step of
+   any flow has none. The CTA row holds the primary only.
    ———————————————————————————————————————————————— */
 (function () {
   "use strict";
@@ -95,17 +104,79 @@
       (subHtml ? '<p class="ob-sub">' + subHtml + "</p>" : "");
   }
 
+  // the CTA row holds the primary only. Back never lives here.
   function cta(label, id, opts) {
     opts = opts || {};
     return '<div class="ob-cta-row">' +
       '<button class="btn btn-primary btn-lg" id="' + id + '" type="button"' + (opts.disabled ? " disabled" : "") + ">" +
       UI.esc(label) + "</button>" +
-      (opts.back ? '<button class="link" data-back="' + opts.back + '" type="button">' + UI.esc(opts.backLabel || "Back") + "</button>" : "") +
+      "</div>";
+  }
+
+  // Back is a quiet ghost control at the top-left of the sheet. The row
+  // is always rendered (empty on a flow's first step, and on the steps
+  // that deliberately have no way back) so the title never jumps
+  // between steps.
+  function backRow(to) {
+    return '<div class="ob-back-row">' +
+      (to ? '<button class="btn btn-ghost ob-back" data-back="' + to + '" type="button">' +
+        icon("chevronLeft", 14) + "Back</button>" : "") +
       "</div>";
   }
 
   function sheet(inner, cls) {
     return '<div class="bare-sheet ob-sheet ' + (cls || "") + '">' + inner + "</div>";
+  }
+
+  // ————— the front door's pieces —————
+
+  // the brand lockup, themed by currentColor; mirrors app.js's private
+  // lockup() because the door paints it paper-on-ink over its own panel
+  function lockupHtml() {
+    return '<svg class="wm-lock" viewBox="0 0 160 28" fill="currentColor" aria-label="Fasset">' +
+      '<use href="#brand-lockup"/></svg>';
+  }
+
+  function f1(v) { return Math.round(v * 10) / 10; }
+
+  // closed Catmull-Rom spline as cubic Beziers: few points, smooth line
+  function smoothClosed(pts) {
+    var n = pts.length, d = "M" + f1(pts[0][0]) + " " + f1(pts[0][1]);
+    for (var i = 0; i < n; i++) {
+      var p0 = pts[(i - 1 + n) % n], p1 = pts[i], p2 = pts[(i + 1) % n], p3 = pts[(i + 2) % n];
+      d += "C" + f1(p1[0] + (p2[0] - p0[0]) / 6) + " " + f1(p1[1] + (p2[1] - p0[1]) / 6) + " " +
+        f1(p2[0] - (p3[0] - p1[0]) / 6) + " " + f1(p2[1] - (p3[1] - p1[1]) / 6) + " " +
+        f1(p2[0]) + " " + f1(p2[1]);
+    }
+    return d + "Z";
+  }
+
+  // the contour field: concentric rings around a point low-right of the
+  // panel, each sheared by three slow harmonics whose phase walks with
+  // the ring index, so the set reads as one topography and not as scaled
+  // copies. Fine paper lines at 18% over ink; exactly one accent ring.
+  // Deterministic seed, so the door is the same door every load.
+  function contourSvg() {
+    var cx = 585, cy = 610, rings = 34, N = 60, gap = 28, accentAt = 11;
+    var seed = 20260904;
+    function rnd() { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return (seed >>> 16) / 32768; }
+    var ph1 = rnd() * 6.2832, ph2 = rnd() * 6.2832, ph3 = rnd() * 6.2832;
+    var out = "";
+    for (var i = 0; i < rings; i++) {
+      var R = 34 + i * gap, pts = [];
+      for (var k = 0; k < N; k++) {
+        var t = k / N * 6.283185;
+        var w = 1 +
+          0.07 * Math.sin(2 * t + ph1 + i * 0.21) +
+          0.04 * Math.sin(3 * t + ph2 - i * 0.17) +
+          0.02 * Math.sin(5 * t + ph3 + i * 0.09);
+        pts.push([cx + R * w * Math.cos(t), cy + R * w * Math.sin(t)]);
+      }
+      out += '<path d="' + smoothClosed(pts) + '" vector-effect="non-scaling-stroke"' +
+        (i === accentAt ? ' class="ob-contour-accent"' : "") + "/>";
+    }
+    return '<svg class="ob-contours" viewBox="0 0 800 1000" preserveAspectRatio="xMidYMid slice" aria-hidden="true">' +
+      '<g fill="none">' + out + "</g></svg>";
   }
 
   // prototype furniture: everything demo lives inside .ob-demo, which the
@@ -156,16 +227,27 @@
 
   // ————— steps —————
 
-  // the front door. One statement, one action, log in as the quiet
-  // secondary. The lockup is already in the zone header above.
+  // the front door. One viewport, split: the contour field on ink with
+  // the lockup and a large Log in over it; the statement and the one
+  // ink action on paper. Nothing else. .ob-door covers the zone header.
   function landing(el) {
-    el.insertAdjacentHTML("beforeend", sheet(
-      '<h1 class="ob-title">Trade USDT at a firm price, from your own accounts.</h1>' +
-      '<div class="ob-cta-row">' +
-        '<button class="btn btn-primary btn-lg" id="obStart" type="button">Open an account</button>' +
-        '<button class="btn btn-ghost" data-back="login" type="button">Log in</button>' +
-      "</div>",
-      "ob-landing"));
+    el.insertAdjacentHTML("beforeend",
+      '<div class="ob-door">' +
+        '<div class="ob-door-art">' + contourSvg() + "</div>" +
+        '<div class="ob-door-copy">' +
+          '<div class="ob-door-main">' +
+            '<h1 class="ob-door-title">Trade large volumes at the best price in the market, from your own accounts.</h1>' +
+            '<div class="ob-door-cta">' +
+              '<button class="btn btn-primary btn-lg ob-door-open" id="obStart" type="button">Open an account</button>' +
+            "</div>" +
+          "</div>" +
+          '<div class="ob-door-foot">© 2026 Fasset</div>' +
+        "</div>" +
+        '<div class="ob-door-brand">' +
+          lockupHtml() + '<span class="wm-prime">Prime</span>' +
+          '<button class="btn btn-secondary ob-door-login" data-back="login" type="button">Log in</button>' +
+        "</div>" +
+      "</div>");
     el.querySelector("#obStart").addEventListener("click", function () { go("email"); });
   }
 
@@ -178,6 +260,7 @@
 
   function stepEmail(el) {
     el.insertAdjacentHTML("beforeend", sheet(
+      backRow("landing") +
       stepsLine(0) +
       head("Open an account.") +
       '<div class="ob-body">' +
@@ -188,7 +271,7 @@
       '<div class="hint err' + (L.emailErr ? "" : " hide") + '" id="obEmailErr">' + emailErrHtml() +
       "</div></div>" +
       "</div>" +
-      cta("Continue", "obNext", { back: "landing" })));
+      cta("Continue", "obNext")));
 
     el.insertAdjacentHTML("beforeend", demo(
       dbtn("obFill", "Fill sample details") + dbtn("obDup", "Prefill an existing email"),
@@ -260,6 +343,7 @@
 
   function stepPassword(el) {
     el.insertAdjacentHTML("beforeend", sheet(
+      backRow("email") +
       stepsLine(0) +
       head("Choose a password.") +
       '<div class="ob-body">' +
@@ -270,7 +354,7 @@
       }).join("") + "</ul></div>" +
       '<div class="hint err' + (L.rateErr ? "" : " hide") + '" id="obRate">Too many sign-ups from this network. Try again in 15 minutes.</div>' +
       "</div>" +
-      cta("Create account", "obCreate", { back: "email", disabled: !passOk(L.pass) }) +
+      cta("Create account", "obCreate", { disabled: !passOk(L.pass) }) +
       '<p class="ob-legal">By creating an account you agree to the Fasset Prime terms.</p>'));
 
     el.insertAdjacentHTML("beforeend", demo(
@@ -322,6 +406,7 @@
   function stepVerify(el) {
     var mail = L.email || Data.state.user.email;
     el.insertAdjacentHTML("beforeend", sheet(
+      backRow(null) +
       stepsLine(1) +
       head("Check your inbox.",
         "We sent a verification link to <strong>" + UI.esc(mail) + "</strong>.") +
@@ -365,6 +450,7 @@
 
   function stepMfaEnroll(el) {
     el.insertAdjacentHTML("beforeend", sheet(
+      backRow("verify") +
       stepsLine(2) +
       head("Secure your account.", "Scan this with your authenticator app.") +
       '<div class="ob-body">' +
@@ -374,7 +460,7 @@
       '<input id="obCode" class="input input-code" inputmode="numeric" maxlength="6" placeholder="······" autocomplete="off">' +
       '<div class="hint err' + (L.codeErr ? "" : " hide") + '" id="obCodeErr">That code isn’t right. Check the app and try again.</div></div>' +
       "</div>" +
-      cta("Confirm", "obConfirm", { back: "verify" })));
+      cta("Confirm", "obConfirm")));
 
     el.insertAdjacentHTML("beforeend", demo("", "Demo · authenticator code 123456."));
 
@@ -397,6 +483,7 @@
 
   function stepCodes(el) {
     el.insertAdjacentHTML("beforeend", sheet(
+      backRow(null) +
       stepsLine(2) +
       head("Save your recovery codes.", "Shown once.") +
       '<div class="ob-body">' +
@@ -413,6 +500,7 @@
 
   function stepQualEntity(el) {
     el.insertAdjacentHTML("beforeend", sheet(
+      backRow("landing") +
       stepsLine(3) +
       head("Are you an institution or an individual?") +
       '<div class="ob-body">' +
@@ -422,32 +510,31 @@
       ]) +
       // the one consequence worth a sentence: this choice is permanent
       '<p class="hint">You can’t change this later without contacting us.</p>' +
-      "</div>" +
-      '<div class="ob-cta-row"><button class="link" data-back="landing" type="button">Back</button></div>'));
+      "</div>"));
 
     onChoice(el, function (v) { L.entity = v; go("qual-volume"); });
   }
 
   function stepQualVolume(el) {
     el.insertAdjacentHTML("beforeend", sheet(
+      backRow("qual-entity") +
       stepsLine(3) +
       head("What monthly volume do you expect?") +
       '<div class="ob-body">' + choices(VOLS.map(function (v) {
         return { v: v, label: v, sel: L.vol === v };
-      })) + "</div>" +
-      '<div class="ob-cta-row"><button class="link" data-back="qual-entity" type="button">Back</button></div>'));
+      })) + "</div>"));
 
     onChoice(el, function (v) { L.vol = v; go("qual-jurisdiction"); });
   }
 
   function stepQualJurisdiction(el) {
     el.insertAdjacentHTML("beforeend", sheet(
+      backRow("qual-volume") +
       stepsLine(3) +
       head("Where will your funds be sent from?") +
       '<div class="ob-body">' + choices(JURS.map(function (v) {
         return { v: v, label: v, sel: L.jur === v };
-      })) + "</div>" +
-      '<div class="ob-cta-row"><button class="link" data-back="qual-volume" type="button">Back</button></div>'));
+      })) + "</div>"));
 
     el.insertAdjacentHTML("beforeend", demo(
       '<label class="ob-ack ob-ack-inline"><input type="checkbox" id="obPark"' + (L.armPark ? " checked" : "") +
@@ -469,7 +556,9 @@
   }
 
   function stepLogin(el) {
+    // Back returns to the door, which is where Open an account lives
     el.insertAdjacentHTML("beforeend", sheet(
+      backRow("landing") +
       head("Log in.") +
       '<div class="ob-body">' +
       '<div class="field"><label for="liEmail">Email</label>' +
@@ -477,7 +566,7 @@
       '<div class="field"><label for="liPass">Password</label>' +
       '<input id="liPass" class="input" type="password" autocomplete="off" value="fifteencharacters"></div>' +
       "</div>" +
-      cta("Continue", "liGo", { back: "landing", backLabel: "Open an account" })));
+      cta("Continue", "liGo")));
 
     el.querySelector("#liGo").addEventListener("click", function () { go("challenge"); });
     el.querySelector("#liPass").addEventListener("keydown", function (e) { if (e.key === "Enter") go("challenge"); });
@@ -485,6 +574,7 @@
 
   function stepChallenge(el) {
     el.insertAdjacentHTML("beforeend", sheet(
+      backRow("login") +
       head("Enter the code from your authenticator.") +
       '<div class="ob-body">' +
       '<div class="field"><input id="mcCode" class="input input-code" inputmode="numeric" maxlength="6" placeholder="······" autocomplete="off">' +
@@ -492,7 +582,7 @@
       '<div class="field' + (L.recOpen ? "" : " hide") + '" id="mcRecWrap"><label for="mcRec">Recovery code</label>' +
       '<input id="mcRec" class="input mono" placeholder="XXXX-XXXX" autocomplete="off"></div>' +
       "</div>" +
-      cta("Verify", "mcGo", { back: "login" }) +
+      cta("Verify", "mcGo") +
       '<div class="mt-12"><button class="link" id="mcRecLink" type="button">Use a recovery code instead</button></div>'));
 
     el.insertAdjacentHTML("beforeend", demo("",
@@ -542,7 +632,8 @@
     // entry sentinel: a fresh element means we arrived from another zone
     // (the demo bar's Landing jump), so the flow restarts at the top.
     // It shows one fact, who you are, once that is known. Navigation
-    // (Log in, Open an account) lives in the sheet, not up here.
+    // (Log in, Open an account) lives on the door, which covers this
+    // header entirely while the landing step is up.
     var right = document.getElementById("bareRight");
     if (right && !right.getAttribute("data-ob-live")) {
       right.setAttribute("data-ob-live", "1");
