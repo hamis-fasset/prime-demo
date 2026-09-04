@@ -41,6 +41,7 @@
   };
 
   function ccy(v, opts) { return UI.ccy ? UI.ccy(v, opts) : UI.esc(v); }
+  function phone() { return !!(App.isPhone && App.isPhone()); }
   function swap(node, html) { if (UI.repaint) UI.repaint(node, html); else node.innerHTML = html; }
   function settle(node) { if (node && UI.settleFlash) UI.settleFlash(node); }
   function isAdmin() { return Data.state.role === "admin"; }
@@ -265,14 +266,22 @@
   // ————— registries — clean rows, every row opens the details drawer —————
   // Reasons, test instructions and Remove all live in the drawer. A row is
   // the fact (who · where · status · when) and a tap gets the rest.
+  //
+  // Phone roles (2026-09-04): line 1 is the account/wallet title, line 2 is
+  // the status and the bank·currency or network. The added date drops out —
+  // it is the drawer timeline's first entry ("Submitted", "Added by the
+  // desk"), so the fact is one tap away and never duplicated in the row.
+  // The address / IBAN sub-line carries .desc so the phone layer's
+  // `.m-row [data-m="title"] .desc` rule folds the row to one line; both
+  // strings are in the drawer's def-group in full.
 
   function walletsTable() {
     return '<div class="wl-table">' + UI.table({
       cols: [
-        { label: "Wallet", w: "minmax(0, 1fr)" },
-        { label: "Network", w: "130px" },
-        { label: "Status", w: "170px" },
-        { label: "Added", w: "105px" }
+        { label: "Wallet", w: "minmax(0, 1fr)", m: "title" },
+        { label: "Network", w: "130px", m: "meta" },
+        { label: "Status", w: "170px", m: "status" },
+        { label: "Added", w: "105px", m: "hide" }
       ],
       rows: Data.state.wallets.map(function (w) {
         return {
@@ -282,7 +291,7 @@
           cells: [
             '<span class="cell-main"><span class="mv-idcell">' +
               '<span class="name">' + UI.esc(w.label) + "</span>" +
-              '<span class="wl-addr">' + UI.esc(w.addr) + "</span>" +
+              '<span class="wl-addr desc">' + UI.esc(w.addr) + "</span>" +
               "</span></span>",
             '<span class="wl-net">' + ccy(w.net) + "</span>",
             walletStatus(w.state),
@@ -297,10 +306,10 @@
   function banksTable() {
     return '<div class="wl-table">' + UI.table({
       cols: [
-        { label: "Account", w: "minmax(0, 1fr)" },
-        { label: "Bank", w: "170px" },
-        { label: "Status", w: "170px" },
-        { label: "Added", w: "105px" }
+        { label: "Account", w: "minmax(0, 1fr)", m: "title" },
+        { label: "Bank", w: "170px", m: "meta" },
+        { label: "Status", w: "170px", m: "status" },
+        { label: "Added", w: "105px", m: "hide" }
       ],
       rows: Data.state.banks.map(function (b) {
         return {
@@ -310,7 +319,7 @@
           cells: [
             '<span class="cell-main"><span class="mv-idcell">' +
               '<span class="name">' + UI.esc(b.title) + "</span>" +
-              '<span class="wl-addr">' + UI.esc(b.iban) + "</span>" +
+              '<span class="wl-addr desc">' + UI.esc(b.iban) + "</span>" +
               "</span></span>",
             '<span class="desc">' + UI.esc(b.bank + " · " + b.cur) + "</span>",
             bankStatus(b.state),
@@ -561,7 +570,9 @@
       if (TAB === "wallets") openAddWallet(); else openAddBank();
     });
 
-    if (!loadedOnce) {
+    // the skeleton is a desktop pass: on the phone the registry is short
+    // enough that a shimmer is a delay, not a waiting vocabulary
+    if (!loadedOnce && !phone()) {
       var body = document.createElement("div");
       body.innerHTML = skeletonHtml();
       el.appendChild(body);

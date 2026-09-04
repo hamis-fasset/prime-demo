@@ -29,6 +29,12 @@
    four) and the currency code money already carries. No saturated
    fill anywhere in the portal. Status dots stay --st-*.
 
+   Phone pass (2026-09-04): the three portal tables declare UI.table
+   column roles, so at 600px each row folds to two lines instead of
+   scrolling sideways. What drops out is only ever a fact the row's own
+   drawer already carries: a client's introduced date (client drawer) and
+   a period's volume (payout drawer). The skeleton is a desktop pass.
+
    States inventory: loading (one skeleton pass per screen per app
    load) · live · empty tables (one quiet sentence) · onboarding client
    (no trades yet) · dormant client · accruing / scheduled / paid
@@ -44,6 +50,17 @@
   // ————— shared helpers —————
 
   function ccy(cur, opts) { return UI.ccy ? UI.ccy(cur, opts) : UI.esc(cur); }
+
+  function phone() { return !!(App.isPhone && App.isPhone()); }
+
+  // A right-aligned figure used to get its alignment from being the grid
+  // item itself. Once a table declares phone column roles, UI.table wraps
+  // every cell in a .m-cell span, so the figure has to be the block that
+  // aligns its own text. display:block is what it already computed to as a
+  // grid item, so the desktop is unchanged either way.
+  function amt(cls, html) {
+    return '<span class="' + cls + '" style="display:block">' + html + "</span>";
+  }
 
   function drow(label, valueHtml, strong) {
     return '<div class="def-row"><span class="def-label">' + UI.esc(label) +
@@ -377,21 +394,25 @@
         key: tradeKey(t),
         clickable: true,
         cells: [
-          '<span class="cell-main">' + UI.identityArt(clientName(t.clientId), 20) +
-            stack(UI.esc(clientName(t.clientId)), UI.esc(tradeTitle(t))) + "</span>",
+          '<span class="cell-main">' + UI.identityArt(clientName(t.clientId), 20) + "</span>",
+          '<span class="cell-main">' + stack(UI.esc(clientName(t.clientId)), UI.esc(tradeTitle(t))) + "</span>",
           tradeStatus(t),
           '<span class="date">' + UI.esc(UI.fmtTs(t.ts)) + "</span>",
-          '<span class="amount">' + UI.money(Data.fiatOf(t.pair), t.fiatAmt) + "</span>"
+          amt("amount", UI.money(Data.fiatOf(t.pair), t.fiatAmt))
         ]
       });
     });
+    // the identity art takes its own 30px track (20px art + the 10px gap
+    // .cell-main used to give it), so it can be the phone row's `lead`
+    // while the desktop column adds up to the same 320px it always did.
     return UI.table({
       cols: [
-        { label: "Client", w: "minmax(0, 320px)" },
-        { spacer: true },
-        { label: "Status", w: "160px" },
-        { label: "Date", w: "105px" },
-        { label: "Notional", w: "170px", right: true }
+        { label: "Client", w: "30px", m: "lead" },
+        { label: "", w: "minmax(0, 290px)", m: "title" },
+        { spacer: true, m: "hide" },
+        { label: "Status", w: "160px", m: "status" },
+        { label: "Date", w: "105px", m: "meta" },
+        { label: "Notional", w: "170px", right: true, m: "amount" }
       ],
       rows: rows,
       empty: "No client activity yet."
@@ -400,7 +421,8 @@
 
   function ovRender(el) {
     wire(el);
-    if (!loaded.overview) {
+    // the skeleton is a desktop pass; on the phone it reads as a delay
+    if (!loaded.overview && !phone()) {
       var body = document.createElement("div");
       body.innerHTML = '<div class="section">' +
         "<div>" + UI.skel("200px", "12px") + "</div>" +
@@ -461,12 +483,15 @@
 
   function clTable() {
     return UI.table({
+      // Introduced drops out on the phone; it is the client drawer's second
+      // def-row, so the fact is one tap away.
       cols: [
-        { label: "Client", w: "minmax(0, 1fr)" },
-        { label: "Status", w: "150px" },
-        { label: "Introduced", w: "110px" },
-        { label: "Trades this period", w: "135px", right: true },
-        { label: "Volume this period", w: "180px", right: true }
+        { label: "Client", w: "30px", m: "lead" },
+        { label: "", w: "minmax(0, 1fr)", m: "title" },
+        { label: "Status", w: "150px", m: "status" },
+        { label: "Introduced", w: "110px", m: "hide" },
+        { label: "Trades this period", w: "135px", right: true, m: "meta" },
+        { label: "Volume this period", w: "180px", right: true, m: "amount" }
       ],
       rows: Data.state.ib.clients.map(function (c, i) {
         var vol = Data.ibMonthVolume(c.id);
@@ -474,12 +499,12 @@
           key: "c:" + c.id,
           clickable: true,
           cells: [
-            '<span class="cell-main">' + UI.identityArt(c.name, 20, i * 30) +
-              stack(UI.esc(c.name), UI.esc(c.type)) + "</span>",
+            '<span class="cell-main">' + UI.identityArt(c.name, 20, i * 30) + "</span>",
+            '<span class="cell-main">' + stack(UI.esc(c.name), UI.esc(c.type)) + "</span>",
             clientStatus(c),
             '<span class="date">' + UI.esc(UI.fmtDate(c.introduced)) + "</span>",
-            '<span class="amount">' + Data.ibMonthTrades(c.id) + "</span>",
-            '<span class="amount' + (vol ? "" : " pending") + '">' + (vol ? UI.money("AED", vol, { dp: 0 }) : "—") + "</span>"
+            amt("amount", String(Data.ibMonthTrades(c.id))),
+            amt("amount" + (vol ? "" : " pending"), vol ? UI.money("AED", vol, { dp: 0 }) : "—")
           ]
         };
       }),
@@ -489,7 +514,7 @@
 
   function clRender(el) {
     wire(el);
-    if (!loaded.clients) {
+    if (!loaded.clients && !phone()) {
       var body = document.createElement("div");
       body.innerHTML = '<div class="section">' +
         "<div>" + UI.skel("100%", "56px") + "</div>" +
@@ -536,8 +561,8 @@
         '<span class="name">' + UI.esc(Data.ibPeriodLabel()) + "</span>",
         periodStatus("accruing"),
         '<span class="date">—</span>',
-        '<span class="amount pending">' + (vol ? UI.money("AED", vol, { dp: 0 }) : "—") + "</span>",
-        '<span class="amount pending">' + (vol ? UI.money("AED", Data.ibAccrual()) : "—") + "</span>"
+        amt("amount pending", vol ? UI.money("AED", vol, { dp: 0 }) : "—"),
+        amt("amount pending", vol ? UI.money("AED", Data.ibAccrual()) : "—")
       ]
     }];
     Data.state.ib.payouts.forEach(function (p) {
@@ -548,18 +573,20 @@
           '<span class="name">' + UI.esc(p.period) + "</span>",
           periodStatus(p.state),
           '<span class="date">' + (p.state === "paid" ? UI.esc(UI.fmtDate(p.paidTs)) : "—") + "</span>",
-          '<span class="amount">' + UI.money("AED", p.volumeAED, { dp: 0 }) + "</span>",
-          '<span class="amount' + (p.state === "paid" ? " positive" : "") + '">' + UI.money("AED", p.amountAED) + "</span>"
+          amt("amount", UI.money("AED", p.volumeAED, { dp: 0 })),
+          amt("amount" + (p.state === "paid" ? " positive" : ""), UI.money("AED", p.amountAED))
         ]
       });
     });
+    // Volume drops out on the phone; it is the payout drawer's third
+    // def-row, so the fact is one tap away.
     return UI.table({
       cols: [
-        { label: "Period", w: "minmax(0, 1fr)" },
-        { label: "Status", w: "140px" },
-        { label: "Date", w: "110px" },
-        { label: "Volume", w: "170px", right: true },
-        { label: "Payout", w: "150px", right: true }
+        { label: "Period", w: "minmax(0, 1fr)", m: "title" },
+        { label: "Status", w: "140px", m: "status" },
+        { label: "Date", w: "110px", m: "meta" },
+        { label: "Volume", w: "170px", right: true, m: "hide" },
+        { label: "Payout", w: "150px", right: true, m: "amount" }
       ],
       rows: rows,
       empty: "Nothing yet."
@@ -568,7 +595,7 @@
 
   function poRender(el) {
     wire(el);
-    if (!loaded.payouts) {
+    if (!loaded.payouts && !phone()) {
       var body = document.createElement("div");
       body.innerHTML = '<div class="section">' +
         "<div>" + UI.skel("160px", "16px") + "</div>" +

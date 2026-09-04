@@ -231,6 +231,10 @@
 
   App.registerScreen("settings", {
     title: "Settings",
+    // the phone's Manage screen hosts this same body under one head, so the
+    // client has one place for their account instead of two tabs
+    renderInto: function (el) { renderBody(el); },
+    back: function () { return App.isPhone && App.isPhone() ? { id: "manage", label: "Manage" } : null; },
     subtitle: "Profile, security and notification preferences",
     // the head's right slot was empty on this screen; support is the one
     // thing a client actually needs from here that isn't on the page

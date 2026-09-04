@@ -912,6 +912,27 @@ button.open-block:hover { background: var(--bg-hover); transition: none; }
 }
 .bare-sheet-wide { max-width: 960px; }
 
+/* UI.table phone roles wrap each cell so the phone layer can place it by
+   grid-area. On desktop the wrapper must not exist as a box, or a cell that
+   got its alignment from BEING the grid item (every right-aligned money
+   column) would lose it. display:contents makes the wrapper vanish from
+   layout; the phone layer re-establishes a box below. */
+.m-cell { display: contents; }
+
+/* ————— Manage (phone tab): one place for the account ————— */
+.manage-list { display: flex; flex-direction: column; gap: 2px; }
+.mg-row {
+  display: flex; align-items: center; gap: 12px;
+  min-height: 56px; padding: 8px 10px;
+  border-radius: var(--r-card); text-align: left;
+  background: none; border: none; font: inherit; color: inherit;
+  transition: background var(--dur-1) var(--ease);
+}
+.mg-row:hover { background: var(--bg-hover); transition: none; }
+.mg-label { font-size: var(--text-14); color: var(--text-default); }
+.mg-value { margin-left: auto; font-size: var(--text-13); color: var(--text-subtle); }
+.mg-row .chev { color: var(--text-faint); flex: none; }
+
 /* ————— demo layer — prototype furniture, summoned, never ambient ————— */
 /* Everything demo (the bar, every screen's demo strip) hides until the
    floating chip toggles body.demo-on. The product never shows its rigging. */
@@ -1244,12 +1265,114 @@ body:not(.demo-on) .section:has(> .demo-strip) { display: none; }
 @media (max-width: 600px) {
   .sidebar { display: none; }
   .main { margin: 0; border-radius: 0; }
-  .topbar { padding: 0 12px; }
+  .topbar { padding: 0 12px; height: 44px; }
   .search-affordance kbd { display: none; }
-  .content { padding: 0 16px 110px; }
-  .page-head { padding: 22px 0 28px; gap: 12px; flex-wrap: wrap; }
-  .page-head h1 { font-size: 24px; }
+  /* the dock sits above the tab bar, so content clears both */
+  .content { padding: 0 14px 148px; scroll-padding-bottom: 148px; }
+
+  /* ————— the phone head: title only, and it shrinks as you scroll —————
+     A 34px title, a subtitle and a button row cost ~330px of an 852px
+     screen before the first fact. On the phone the title carries the page,
+     the subtitle is cut app-wide (it was the last explainer furniture), and
+     the action moves to the thumb (see .action-dock). */
+  .page-head {
+    position: sticky; top: 0; z-index: 3;
+    display: block;
+    padding: 10px 0 14px;
+    background: var(--bg);
+    transition: padding var(--dur-1) var(--ease-snappy);
+  }
+  .page-head h1 { font-size: 22px; transition: font-size var(--dur-1) var(--ease-snappy); }
+  .page-sub { display: none; }
+  .page-head .page-actions { display: none; }        /* the node is reparented into the dock */
+  .page-back {
+    display: inline-flex; align-items: center; gap: 4px;
+    margin: 0 0 2px -10px; min-height: 40px; font-size: var(--text-12);
+  }
+  body.head-compact .page-head { padding: 6px 0 8px; box-shadow: 0 1px 0 var(--border-faint); }
+  body.head-compact .page-head h1 { font-size: 16px; font-weight: var(--w-medium); }
+  body.head-compact .page-back { display: none; }
+
+  /* the primary action, where the thumb is */
+  .action-dock {
+    position: fixed; z-index: 39;
+    left: 12px; right: 12px;
+    bottom: calc(var(--demobar-h, 40px) + 64px + 10px);
+    display: flex; gap: 8px;
+  }
+  .action-dock .page-actions { display: flex; gap: 8px; flex: 1; padding: 0; }
+  .action-dock .btn { flex: 1; height: 48px; font-size: var(--text-14); box-shadow: var(--elev-2); }
+
   .bal-value { font-size: 32px; }
+  .icon-btn { width: 44px; height: 44px; }
+
+  /* ————— the two-line money row (replaces squeezed tables) —————
+     A table that scrolls sideways inside a row is a desktop table wearing a
+     phone. Where a screen declares column roles (UI.table cols[].m), the row
+     becomes two lines: lead · title · amount over status · meta. Columns
+     marked "hide" drop out; that fact lives in the row's drawer. */
+  .table.has-m { overflow-x: visible; }
+  .table.has-m .table-header { display: none; }
+  .table.has-m .group-label { position: sticky; top: 44px; z-index: 2; background: var(--bg); padding: 14px 12px 6px; }
+  .row.m-row {
+    display: grid !important;
+    /* the row carries an inline desktop grid-template-columns; beat it */
+    grid-template-columns: auto minmax(0, 1fr) auto !important;
+    grid-template-areas: "lead title amount" "lead status meta";
+    align-items: center;
+    column-gap: 10px; row-gap: 2px;
+    min-width: 0 !important;
+    min-height: 64px;
+    padding: 10px 12px;
+    border-radius: var(--r-card);
+  }
+  .m-row .m-cell { display: block; min-width: 0; }
+  .m-row [data-m="lead"]   { grid-area: lead; display: inline-flex; align-items: center; }
+  .m-row [data-m="title"]  { grid-area: title; font-size: var(--text-14); color: var(--text-default);
+                             overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .m-row [data-m="amount"] { grid-area: amount; justify-self: end; font-size: var(--text-14);
+                             font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .m-row [data-m="status"] { grid-area: status; font-size: var(--text-12); min-width: 0; }
+  .m-row [data-m="meta"]   { grid-area: meta; justify-self: end; font-size: var(--text-12);
+                             color: var(--text-faint); white-space: nowrap; }
+  .m-row [data-m="hide"]   { display: none; }
+  /* the row's own sub-line is redundant once status and meta are on line 2 */
+  .m-row [data-m="title"] .desc { display: none; }
+  .m-row [data-m="title"] .cell-main { display: inline; }
+  .m-row [data-m="title"] .cat { margin-right: 7px; }   /* the flex gap died with the inline cell */
+  .m-row [data-m="title"] .name { display: inline !important; }
+
+  /* currency pills scroll rather than wrap to a second row */
+  .bal-pills { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity; padding-bottom: 2px; }
+  .bal-pills::-webkit-scrollbar { display: none; }
+  .bal-pill { flex: none; scroll-snap-align: start; }
+
+  /* sheets: thumb-sized footers, no iOS zoom, no scroll chaining */
+  .panel-body { overscroll-behavior: contain; padding: 16px; }
+  .panel-foot { padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); gap: 8px; }
+  .panel-foot .btn { flex: 1; height: 48px; }
+  .panel-head { padding: 14px 16px; }
+  .input, .select, textarea.input, .tx-amt { font-size: 16px; }   /* < 16px makes iOS zoom the page */
+  .field-row { grid-template-columns: minmax(0, 1fr); }
+  /* a def-row with a long value reads better label-over-value on a phone */
+  .panel .def-row { flex-direction: column; align-items: flex-start; gap: 2px; }
+  .panel .def-row .def-value { text-align: left; }
+
+  /* IB overview tiles: two up, not four stacked */
+  .stat-strip { grid-template-columns: repeat(2, 1fr); }
+  .stat-strip > * { border-left: none; padding: 10px 0; }
+
+  /* the role capability list is reference, not a fact the phone needs: the
+     roles are stated where the decision is made (the invite sheet) */
+  .section:has(> .section-head > h2) .role-caps { display: none; }
+  .role-caps { display: none; }
+  .section:has(.role-caps) .section-head { display: none; }
+
+  /* Manage: identity then rows */
+  .mg-id { display: flex; align-items: center; gap: 12px; }
+  .mg-id-meta { display: flex; flex-direction: column; min-width: 0; }
+  .mg-id-name { font-size: var(--text-16, 16px); font-weight: var(--w-medium); color: var(--text-strong); }
+  .mg-id-sub { font-size: var(--text-12); color: var(--text-subtle); }
 
   /* the bottom tab bar — icons only (Hamis 2026-09-04), every target an
      obvious 48px pill; the active tab is the same paper rect the sidebar
@@ -1288,12 +1411,8 @@ body:not(.demo-on) .section:has(> .demo-strip) { display: none; }
   /* tables scroll themselves (base .table + per-table computed min-width);
      the page never scrolls sideways */
 
-  /* IB stat strips go single column on a phone */
-  .stat-strip { grid-template-columns: 1fr; row-gap: 4px; }
-  .stat-strip > * { border-left: none; padding: 10px 0; }
-
   /* toasts clear the tab bar */
-  .toast { bottom: calc(var(--demobar-h, 40px) + 64px + 14px); max-width: calc(100vw - 32px); }
+  .toast { bottom: calc(var(--demobar-h, 40px) + 64px + 68px); max-width: calc(100vw - 32px); }
 
   /* balance cards stack two-up; tighter metrics so the money never clips */
   .bal-cards { grid-template-columns: repeat(2, 1fr); gap: 10px; }

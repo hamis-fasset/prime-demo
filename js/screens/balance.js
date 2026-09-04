@@ -29,6 +29,10 @@
   function rate4(r) { return Number(r).toFixed(4); }
   function repaint(el, html) { if (!el) return; if (UI.repaint) UI.repaint(el, html); else el.innerHTML = html; }
   function region(id) { return ROOT ? ROOT.querySelector('[data-balsec="' + id + '"]') : null; }
+  function phone() { return !!(App.isPhone && App.isPhone()); }
+  // the day is a sticky group label above the row on the phone, so the meta
+  // slot carries the time alone; desktop keeps the full stamp
+  function stamp(ts) { return phone() ? UI.fmtTime(ts) : UI.fmtTs(ts); }
 
   // ————— currency pills: this screen is the home of every balance —————
 
@@ -103,13 +107,25 @@
     return out;
   }
 
+  // A period is a row, not a label with an "Open" link beside it: the whole
+  // row is the tap target (a link is a 40px target inside a 56px row that
+  // does the same thing), and it inherits the table grammar — 56px rows, the
+  // header hairline, and the phone's two-line row. One fact per row, so one
+  // column with the "title" role.
   function statementsHtml() {
     return '<div class="section-head"><h2>Statements</h2></div>' +
-      periods().map(function (p) {
-        return '<div class="copy-row"><span class="cr-label">' + UI.esc(p) + '</span>' +
-          '<span class="cr-value"></span>' +
-          '<button class="link" data-stmt="' + UI.esc(p) + '" type="button">Open</button></div>';
-      }).join("");
+      UI.table({
+        cols: [{ label: "Period", w: "minmax(0, 1fr)", m: "title" }],
+        rows: periods().map(function (p) {
+          return {
+            key: p,
+            cls: "stmt-row",
+            clickable: true,
+            cells: ['<span class="cell-main"><span class="name">' + UI.esc(p) + "</span></span>"]
+          };
+        }),
+        empty: "No statements yet."
+      });
   }
 
   function periodWindow(period) {
@@ -389,19 +405,26 @@
           '<span class="cell-main"><span style="min-width:0"><span class="name" style="display:block">' + UI.esc(a.title) + "</span>" +
             '<span class="desc">' + UI.esc(a.sub) + "</span></span></span>",
           UI.statusDot(a.status.kind, a.status.label),
-          '<span class="date">' + UI.esc(UI.fmtTs(a.ts)) + "</span>",
-          '<span class="amount' + (a.status.kind === "error" ? " error status-error" : a.status.kind === "positive" ? (a.dir > 0 ? " positive" : "") : " pending") + '">' +
+          '<span class="date">' + UI.esc(stamp(a.ts)) + "</span>",
+          // display:block: the role wrapper (.m-cell) is the grid item now, so
+          // .amount must be the block that fills the track for its
+          // text-align:right to hold. Desktop unchanged.
+          '<span class="amount' + (a.status.kind === "error" ? " error status-error" : a.status.kind === "positive" ? (a.dir > 0 ? " positive" : "") : " pending") + '" style="display:block">' +
             UI.money(a.cur, a.amount, { sign: a.dir > 0 ? "+" : a.dir < 0 ? "−" : "" }) + "</span>"
         ]
       });
     });
     return UI.table({
+      // phone roles (m): activity over amount on line 1, status over time on
+      // line 2. One currency on this screen, so there is no identity swatch
+      // and no "lead". The spacer is "hide" so it cannot auto-place into a
+      // third line of the phone grid.
       cols: [
-        { label: "Activity", w: "minmax(0, 300px)" },
-        { spacer: true },
-        { label: "Status", w: "180px" },
-        { label: "Date", w: "105px" },
-        { label: "Amount", w: "165px", right: true }
+        { label: "Activity", w: "minmax(0, 300px)", m: "title" },
+        { spacer: true, m: "hide" },
+        { label: "Status", w: "180px", m: "status" },
+        { label: "Date", w: "105px", m: "meta" },
+        { label: "Amount", w: "165px", right: true, m: "amount" }
       ],
       rows: rows,
       empty: "No " + CUR + " activity yet."
@@ -436,8 +459,10 @@
         if (c !== CUR) { CUR = c; App.rerender(); }   // the title names the currency
         return;
       }
-      var st = e.target.closest("[data-stmt]");
-      if (st) { openStatement(st.getAttribute("data-stmt"), CUR, st); return; }
+      // the statement row carries its period as the table's data-key; it is
+      // checked before the ledger rows because both are .row.clickable
+      var st = e.target.closest(".stmt-row");
+      if (st) { openStatement(st.getAttribute("data-key"), CUR, st); return; }
       var row = e.target.closest(".row.clickable");
       if (row) {
         var a = curActs[row.getAttribute("data-key")];

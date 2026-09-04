@@ -186,6 +186,16 @@
 
   var curActs = {};   // key → entry, for the drawer
 
+  function phone() { return !!(App.isPhone && App.isPhone()); }
+
+  // The day is already a group label above the row, so on the phone the meta
+  // slot carries the time alone ("14:14"); repeating "Today," inside every
+  // row would be the same fact twice and it steals width from the status
+  // beside it. On the phone the group label is sticky (.table.has-m), so the
+  // day is always on screen. Desktop is untouched: its group label scrolls
+  // away, so the row keeps the full stamp.
+  function stamp(ts) { return phone() ? UI.fmtTime(ts) : UI.fmtTs(ts); }
+
   function activityHtml() {
     var acts = Data.state.firstRun ? [] : Data.activity().slice(0, 30);
     curActs = {};
@@ -202,19 +212,29 @@
             '<span style="min-width:0"><span class="name" style="display:block">' + UI.esc(a.title) + "</span>" +
             '<span class="desc">' + UI.esc(a.sub) + "</span></span></span>",
           UI.statusDot(a.status.kind, a.status.label),
-          '<span class="date">' + UI.esc(UI.fmtTs(a.ts)) + "</span>",
-          '<span class="' + amountCls(a) + '">' +
+          '<span class="date">' + UI.esc(stamp(a.ts)) + "</span>",
+          // display:block because the role wrapper (.m-cell) is now the grid
+          // item: .amount's text-align:right only right-aligns the figure if
+          // .amount is itself the block filling the track. Desktop unchanged.
+          '<span class="' + amountCls(a) + '" style="display:block">' +
             UI.money(a.cur, a.amount, { sign: a.dir > 0 ? "+" : a.dir < 0 ? "−" : "" }) + "</span>"
         ]
       });
     });
     return UI.table({
+      // phone roles (m): line 1 is the event over the amount, line 2 the
+      // status over the time. The swatch stays INSIDE the event cell rather
+      // than becoming its own "lead" track: a separate track would have to
+      // be a fixed width with no gap to the title, which moves every desktop
+      // column. app.css already handles it (.m-row [data-m="title"]
+      // .cell-main { display: inline }). The structural spacer is "hide" so
+      // it never auto-places into a third line of the phone grid.
       cols: [
-        { label: "Event", w: "minmax(0, 300px)" },
-        { spacer: true },
-        { label: "Status", w: "190px" },
-        { label: "Date", w: "105px" },
-        { label: "Amount", w: "155px", right: true }
+        { label: "Event", w: "minmax(0, 300px)", m: "title" },
+        { spacer: true, m: "hide" },
+        { label: "Status", w: "190px", m: "status" },
+        { label: "Date", w: "105px", m: "meta" },
+        { label: "Amount", w: "155px", right: true, m: "amount" }
       ],
       rows: rows,
       empty: "No activity yet. Your first deposit shows up here."
@@ -280,7 +300,11 @@
     // action is wired here rather than with an inline handler
     wireRegion(el.querySelector(".page-actions"));
 
-    // waiting vocabulary: one brief skeleton pass on first load only
+    // waiting vocabulary: one brief skeleton pass on first load only.
+    // Not on the phone: 380ms of grey bars on a 390px screen reads as a
+    // broken app, not as loading. The flag is still burned so the desktop
+    // path (and any later resize) behaves exactly as before.
+    if (phone()) loadedOnce = true;
     if (!loadedOnce) {
       var body = document.createElement("div");
       body.innerHTML = skeletonHtml();

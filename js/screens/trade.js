@@ -438,14 +438,20 @@
       };
     });
     return UI.table({
-      // identity capped, spacer takes the surplus, the cluster stays adjacent
+      // identity capped, spacer takes the surplus, the cluster stays adjacent.
+      // Phone roles (m): the purchased leg is the title (its swatch rides
+      // inside the cell, as on the dashboard — a separate "lead" track would
+      // move every desktop column), the sold leg is the amount, and the rate
+      // drops out: it is already the chip between the legs in the details
+      // drawer this row opens. The date keeps the full stamp here because
+      // trade history has no day group labels to carry it.
       cols: [
-        { label: "Purchased", w: "minmax(0, 220px)" },
-        { spacer: true },
-        { label: "Sold", w: "190px" },
-        { label: "Rate", w: "195px" },
-        { label: "Status", w: "150px" },
-        { label: "Date", w: "135px" }
+        { label: "Purchased", w: "minmax(0, 220px)", m: "title" },
+        { spacer: true, m: "hide" },
+        { label: "Sold", w: "190px", m: "amount" },
+        { label: "Rate", w: "195px", m: "hide" },
+        { label: "Status", w: "150px", m: "status" },
+        { label: "Date", w: "135px", m: "meta" }
       ],
       rows: rows,
       empty: "No trades yet."
@@ -502,12 +508,16 @@
       ["buy", "sell"].forEach(function (s) {
         var inp = byId("txAmt-" + s);
         if (!inp) return;
-        inp.addEventListener("input", function () {
-          Q.entry = s;
-          Q.amt = inp.value;
-          inp.classList.remove("est");
-          var other = byId("txAmt-" + (s === "buy" ? "sell" : "buy"));
-          if (other) { other.value = estFor(s === "buy" ? "sell" : "buy"); other.classList.add("est"); }
+        // grouped digits as you type (UI.amountInput owns the caret)
+        UI.amountInput(inp, {
+          dp: curOf(s) === "USDT" ? 0 : 2,
+          onInput: function (v) {
+            Q.entry = s;
+            Q.amt = v;
+            inp.classList.remove("est");
+            var other = byId("txAmt-" + (s === "buy" ? "sell" : "buy"));
+            if (other) { other.value = estFor(s === "buy" ? "sell" : "buy"); other.classList.add("est"); }
+          }
         });
         inp.addEventListener("keydown", function (e) { if (e.key === "Enter") getQuote(); });
       });
@@ -567,6 +577,10 @@
   function render(el) {
     if (!Q) initQ();
 
+    // no skeleton on the phone: the trade object is the screen, and 360ms of
+    // grey bars where it should be reads as broken. The flag is burned so the
+    // desktop path is unchanged.
+    if (App.isPhone && App.isPhone()) loadedOnce = true;
     if (!loadedOnce) {
       var body = document.createElement("div");
       body.innerHTML = skeletonHtml();

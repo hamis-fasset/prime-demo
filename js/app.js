@@ -69,10 +69,30 @@
     ]}
   ];
 
+  // ————— the phone tab bar (Hamis 2026-09-04) —————
+  // Five destinations, not six: Team and Settings merge into "Manage", which
+  // exists on the phone only (the sidebar keeps them separate). A tab stays
+  // lit while you are on a screen it owns, so a pushed screen never orphans
+  // the bar.
+  var MOBILE_NAV = [
+    { id: "dashboard", label: "Dashboard", icon: "overview", roles: ["admin", "trader", "viewer"] },
+    { id: "trade", label: "Trade", icon: "trade", roles: ["admin", "trader"] },
+    { id: "balance", label: "Balances", icon: "move", roles: ["admin", "trader", "viewer"], owns: ["withdraw"] },
+    { id: "accounts", label: "Accounts", icon: "shieldCheck", roles: ["admin", "trader"] },
+    { id: "manage", label: "Manage", icon: "settings", roles: ["admin", "trader", "viewer"], owns: ["team", "settings"] }
+  ];
+  // reachable by App.go but never in the sidebar
+  var MOBILE_ONLY = ["manage"];
+
+  App.isPhone = function () {
+    return window.matchMedia && window.matchMedia("(max-width: 600px)").matches;
+  };
+
   function navSet() { return Data.state.persona === "ib" ? IB_NAV : NAV; }
   function homeId() { return Data.state.persona === "ib" ? "ib-overview" : "dashboard"; }
 
   function allowed(id) {
+    if (MOBILE_ONLY.indexOf(id) >= 0) return Data.state.persona !== "ib";
     if (OFF_NAV.indexOf(id) >= 0) return Data.state.persona !== "ib";
     var role = Data.state.role;
     var ok = false;
@@ -124,14 +144,15 @@
   function mobileNavHtml() {
     var role = Data.state.role;
     var items = [];
-    navSet().forEach(function (g) {
-      g.items.forEach(function (it) {
-        if (!it.roles || it.roles.indexOf(role) >= 0) items.push(it);
-      });
-    });
+    if (Data.state.persona === "ib") {
+      IB_NAV.forEach(function (g) { g.items.forEach(function (it) { items.push(it); }); });
+    } else {
+      items = MOBILE_NAV.filter(function (it) { return !it.roles || it.roles.indexOf(role) >= 0; });
+    }
     return items.map(function (it) {
-      return '<button class="mnav-item' + (current === it.id ? " active" : "") + '" data-nav="' + it.id + '" type="button" aria-label="' + UI.esc(it.label) + '"' +
-        (current === it.id ? ' aria-current="page"' : "") + ">" + icon(it.icon, 22) + "<span>" + UI.esc(it.label) + "</span></button>";
+      var on = current === it.id || (it.owns && it.owns.indexOf(current) >= 0);
+      return '<button class="mnav-item' + (on ? " active" : "") + '" data-nav="' + it.id + '" type="button" aria-label="' + UI.esc(it.label) + '"' +
+        (on ? ' aria-current="page"' : "") + ">" + icon(it.icon, 22) + "<span>" + UI.esc(it.label) + "</span></button>";
     }).join("");
   }
 
@@ -254,13 +275,50 @@
     if (def.zone === "app") {
       var head = document.createElement("div");
       head.className = "page-head";
-      head.innerHTML = "<div><h1>" + UI.esc(val(def.title)) + "</h1>" +
+      // a pushed screen carries its parent as a ghost back, top-left, above
+      // the title (decision 42's law, applied inside the app zone)
+      var back = typeof def.back === "function" ? def.back() : def.back;
+      head.innerHTML =
+        (back ? '<button class="btn btn-ghost page-back" data-nav="' + UI.esc(back.id) + '" type="button">' +
+          icon("chevronLeft", 14) + UI.esc(back.label) + "</button>" : "") +
+        "<div><h1>" + UI.esc(val(def.title)) + "</h1>" +
         (val(def.subtitle) ? '<p class="page-sub">' + UI.esc(val(def.subtitle)) + "</p>" : "") + "</div>" +
         (def.actions ? '<div class="page-actions">' + def.actions() + "</div>" : "");
       el.appendChild(head);
+      head.querySelectorAll("[data-nav]").forEach(function (b) {
+        b.addEventListener("click", function () { App.go(b.getAttribute("data-nav")); });
+      });
     }
     host.appendChild(el);
     def.render(el);
+    dockActions(el);
+    resetHeadCompact();
+  }
+
+  // ————— phone: the primary action docks above the tab bar —————
+  // The .page-actions NODE is reparented, never cloned: every screen wires
+  // its head buttons by id after render, so a copy would duplicate ids and
+  // break the wiring.
+  function dockActions(el) {
+    if (!App.isPhone()) return;
+    var acts = el.querySelector(".page-actions");
+    if (!acts || !acts.children.length) return;
+    var dock = document.createElement("div");
+    dock.className = "action-dock";
+    dock.appendChild(acts);
+    el.appendChild(dock);
+  }
+
+  // ————— phone: the head shrinks once you scroll —————
+  function resetHeadCompact() {
+    document.body.classList.remove("head-compact");
+    var content = root && root.querySelector(".content");
+    if (!content || content.__headWired) return;
+    content.__headWired = true;
+    content.addEventListener("scroll", function () {
+      if (!App.isPhone()) { document.body.classList.remove("head-compact"); return; }
+      document.body.classList.toggle("head-compact", content.scrollTop > 24);
+    }, { passive: true });
   }
   App.rerender = renderScreen;
 

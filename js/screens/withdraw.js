@@ -81,6 +81,10 @@
     return h;
   }
 
+  // .mv-cols is a two-track grid on the desktop and a single track at ≤900px,
+  // so DOM order is what the phone reads. The form (or the denial) is always
+  // written FIRST and the Available reference column second: the client came
+  // to move money, not to read balances. Do not flip these two.
   function mainHtml() {
     if (!canAct()) {
       return '<div class="mv-cols"><div class="mv-denied"><p>Withdrawals are for admins and traders.</p></div>' +
@@ -131,6 +135,10 @@
       var er = node.querySelector("#wdAmtErr");
       if (er) er.classList.add("hide");
     });
+    // grouped digits as you type; re-wired after every paint (guarded inside)
+    node.addEventListener("focusin", function (e) {
+      if (e.target.id === "wdAmt") UI.amountInput(e.target, { dp: WD.cur === "USDT" ? 0 : 2 });
+    });
     node.addEventListener("change", function (e) {
       if (e.target.id === "wdCur") { WD.cur = e.target.value; WD.dest = ""; WD.err = ""; paint(); }
       if (e.target.id === "wdDest") { WD.dest = e.target.value; WD.err = ""; }
@@ -161,6 +169,9 @@
   }
 
   function render(el) {
+    // no skeleton on the phone: a 320ms blank-grey screen before a form reads
+    // as broken. The flag is burned so the desktop path is unchanged.
+    if (App.isPhone && App.isPhone()) loadedOnce = true;
     if (!loadedOnce) {
       var body = document.createElement("div");
       body.innerHTML = skeletonHtml();
@@ -197,6 +208,7 @@
 
   App.registerScreen("withdraw", {
     title: "Withdraw",
+    back: function () { return App.isPhone && App.isPhone() ? { id: "balance", label: "Balances" } : null; },
     zone: "app",
     // off the nav since 2026-09-03: the flow starts from a balance view
     setCur: function (c) {

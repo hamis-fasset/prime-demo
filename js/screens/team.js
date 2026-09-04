@@ -17,6 +17,18 @@
    Wave-3 (magic plan M5): each member row carries generated identity
    art instead of monogram initials, hashed from the email so the same
    person is the same square everywhere, staggered 30ms down the table.
+
+   Phone pass (2026-09-04): the table declares column roles, so at 600px
+   a row folds to identity art · name over role · status. MFA, last
+   active and the inline action cluster drop out, which means the row
+   needs somewhere to put them: openMember(), a member details drawer
+   modelled on the one in accounts.js. Same def-group grammar, the same
+   role select (step-up, reverts until confirmed), the same arm-to-
+   confirm Remove, the same resend / remind links. The whole row opens
+   it on every viewport; the inline controls stay on the desktop row and
+   are simply not rendered on the phone, because a <select> or a
+   <button> nested inside the row's own <button> is invalid markup the
+   parser would tear apart.
    ———————————————————————————————————————————————— */
 (function () {
   "use strict";
@@ -36,6 +48,17 @@
 
   function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
+  function phone() { return !!(App.isPhone && App.isPhone()); }
+
+  function drow(label, valueHtml, strong) {
+    return '<div class="def-row"><span class="def-label">' + UI.esc(label) +
+      '</span><span class="def-value' + (strong ? " strong" : "") + '">' + valueHtml + "</span></div>";
+  }
+
+  function mfaCell(m) {
+    return m.mfa ? UI.statusDot("positive", "Enrolled") : UI.statusDot("neutral", "Not enrolled");
+  }
+
   function memberStatus(m) {
     if (m.state === "invited") return UI.statusDot("warning", "Invited " + UI.fmtDate(m.invitedIso) + " · expires in " + daysLeft(m.invitedIso) + "d");
     if (m.state === "expired") return UI.statusDot("error", "Invite expired · they never joined");
@@ -54,17 +77,154 @@
     return '<span class="small muted">' + UI.esc(cap(m.role)) + "</span>";
   }
 
-  function actionCell(m) {
+  // the phone row can hold no control, so role reads as plain text there
+  function roleText(m) {
+    if (m.you) return '<span class="small">Admin <span class="faint">· you</span></span>';
+    return '<span class="small">' + UI.esc(cap(m.role)) + "</span>";
+  }
+
+  // the same set of actions the row has always offered, each shown only
+  // when it applies. withRemove is false in the drawer, where Remove is a
+  // footer button instead.
+  function actionLinks(m, withRemove) {
     var a = [];
-    if (m.state === "active" && !m.you) a.push('<button class="link link-danger" data-rm="' + UI.esc(m.email) + '" type="button">Remove</button>');
+    if (withRemove && m.state === "active" && !m.you) a.push('<button class="link link-danger" data-rm="' + UI.esc(m.email) + '" type="button">Remove</button>');
     if (m.state === "invited") a.push('<button class="link" data-resend="' + UI.esc(m.email) + '" type="button">Resend</button>');
     if (m.state === "expired") a.push('<button class="link" data-resend="' + UI.esc(m.email) + '" type="button">Resend invite</button>');
     if (m.state === "blocked") a.push('<button class="link" data-remind="' + UI.esc(m.email) + '" type="button">Remind to enroll MFA</button>');
-    return '<span class="row-actions">' + a.join("") + "</span>";
+    return a;
+  }
+
+  function actionCell(m) {
+    return '<span class="row-actions">' + actionLinks(m, true).join("") + "</span>";
   }
 
   function member(email) {
     return Data.state.team.filter(function (x) { return x.email === email; })[0];
+  }
+
+  // ————— shared wiring: the row and the drawer bind the same controls —————
+
+  // role change: the select visually reverts until the step-up confirms
+  function wireRoleSelects(scope) {
+    if (!scope) return;
+    scope.querySelectorAll("[data-role-sel]").forEach(function (sel) {
+      if (sel.__tmWired) return;
+      sel.__tmWired = true;
+      sel.addEventListener("change", function () {
+        var m = member(sel.getAttribute("data-role-sel"));
+        if (!m) return;
+        var newRole = sel.value;
+        sel.value = m.role; // revert; only a confirmed step-up changes it
+        UI.stepUp("Changing a role changes what " + m.name + " can do with the entity’s money.", function () {
+          Data.changeRole(m.email, newRole);
+        });
+      });
+    });
+  }
+
+  // remove: arm on first click, step-up on the second. The armed state is
+  // visible (it says what the second click does) and disarms itself after
+  // 4s. An armed destructive control that looks identical to a resting one
+  // is a trap.
+  function wireRemoves(scope) {
+    if (!scope) return;
+    scope.querySelectorAll("[data-rm]").forEach(function (b) {
+      if (b.__tmWired) return;
+      b.__tmWired = true;
+      var rest = b.textContent;
+      var timer = null;
+      function disarm() {
+        clearTimeout(timer);
+        timer = null;
+        b.classList.remove("armed");
+        b.textContent = rest;
+      }
+      b.addEventListener("click", function () {
+        var email = b.getAttribute("data-rm");
+        if (!b.classList.contains("armed")) {
+          b.classList.add("armed");
+          b.textContent = "Click again to confirm";
+          timer = setTimeout(disarm, ARM_MS);
+          return;
+        }
+        disarm();
+        UI.stepUp("Removing a member revokes their access to the entity’s money. Their sessions end immediately.", function () {
+          Data.removeMember(email);
+        });
+      });
+    });
+  }
+
+  function wireResends(scope) {
+    if (!scope) return;
+    scope.querySelectorAll("[data-resend]").forEach(function (b) {
+      if (b.__tmWired) return;
+      b.__tmWired = true;
+      b.addEventListener("click", function () {
+        var email = b.getAttribute("data-resend");
+        Data.resendInvite(email);
+        UI.toast("Invite re-sent to " + email + ".", "done");
+      });
+    });
+  }
+
+  function wireReminds(scope) {
+    if (!scope) return;
+    scope.querySelectorAll("[data-remind]").forEach(function (b) {
+      if (b.__tmWired) return;
+      b.__tmWired = true;
+      b.addEventListener("click", function () { UI.toast("Reminder sent.", "done"); });
+    });
+  }
+
+  // ————— member details drawer (the accounts.js pattern) —————
+  // Everything the phone row drops lives here, and the drawer stays live:
+  // it repaints on every "team" mutation and closes itself if the member
+  // is removed while it is open.
+
+  function memberDetailsHtml(m) {
+    var joined = m.name && m.name !== "—";
+    var acts = actionLinks(m, false);
+    return '<div class="def-group">' +
+        (joined ? drow("Name", UI.esc(m.name), true) : "") +
+        drow("Email", UI.esc(m.email), !joined) +
+        drow("Role", roleCell(m)) +
+        drow("Status", memberStatus(m)) +
+        drow("MFA", mfaCell(m)) +
+        drow("Last active", UI.esc(m.last)) +
+      "</div>" +
+      (acts.length ? '<div class="flex mt-16">' + acts.join("") + "</div>" : "");
+  }
+
+  function openMember(email) {
+    function find() {
+      return Data.state.team.filter(function (x) { return x.email === email; })[0] || null;
+    }
+    if (!find()) return;
+    var refresh;
+    var h = UI.drawer("Member details", "", {
+      width: 460,
+      onClose: function () { Data.off(refresh); }
+    });
+    function paint() {
+      var m = find();
+      if (!m) { h.close(); return; }
+      h.body.innerHTML = memberDetailsHtml(m);
+      wireRoleSelects(h.body);
+      wireResends(h.body);
+      wireReminds(h.body);
+      h.setFoot(
+        (m.state === "active" && !m.you
+          ? '<button class="btn btn-secondary" data-rm="' + UI.esc(m.email) + '" type="button">Remove</button>'
+          : "") +
+        '<button class="btn btn-secondary" data-tmd-close type="button">Close</button>');
+      h.foot.querySelector("[data-tmd-close]").addEventListener("click", h.close);
+      wireRemoves(h.foot);
+    }
+    refresh = function (scope) { if (scope === "team") paint(); };
+    Data.on(refresh);
+    paint();
   }
 
   // ————— invite drawer (one quiet step + step-up: invites carry a role) —————
@@ -129,7 +289,8 @@
     var inviteBtn = el.querySelector("#teamInvite");
     if (inviteBtn) inviteBtn.addEventListener("click", openInvite);
 
-    if (!loadedOnce) {
+    // desktop-only skeleton pass: on the phone it is a delay, not a wait
+    if (!loadedOnce && !phone()) {
       var body = document.createElement("div");
       body.innerHTML = skeletonHtml();
       el.appendChild(body);
@@ -144,6 +305,7 @@
 
   function renderBody(el) {
     var team = Data.state.team;
+    var ph = phone();
     var h = "";
 
     // — what each role can do: open typography, no boxes —
@@ -160,28 +322,41 @@
         // content-width and adjacent: Status used to be a 1.3fr track, which
         // both spread the cluster and let "activation blocked" collide with
         // the MFA column. Member takes the remainder and shrinks first.
+        //
+        // The identity art is its own 30px track so it can be the phone
+        // row's `lead` while staying exactly where it sat on the desktop
+        // (20px art + the 10px gap .cell-main used to provide). The header
+        // label stays on that track, so "Member" still starts at the same x.
         cols: [
-          { label: "Member", w: "minmax(0, 1fr)" },
-          { label: "Role", w: "112px" },
-          { label: "Status", w: "295px" },
-          { label: "MFA", w: "100px" },
-          { label: "Last active", w: "85px" },
-          { label: "", w: "165px", right: true }
+          { label: "Member", w: "30px", m: "lead" },
+          { label: "", w: "minmax(0, 1fr)", m: "title" },
+          { label: "Role", w: "112px", m: "meta" },
+          { label: "Status", w: "295px", m: "status" },
+          { label: "MFA", w: "100px", m: "hide" },
+          { label: "Last active", w: "85px", m: "hide" },
+          { label: "", w: "165px", right: true, m: "hide" }
         ],
         // the identity square is seeded off the email, so the same person is
         // the same square everywhere, and staggered 30ms down the table
         rows: team.map(function (m, i) {
           return {
             key: m.email,
+            // a real <button> row on the phone, where nothing interactive is
+            // rendered inside it; a div carrying .clickable on the desktop,
+            // where the role select and the action links still live in the
+            // row and may not be nested inside a button
+            clickable: ph,
+            cls: ph ? "" : "clickable",
             cells: [
-              '<span class="cell-main">' + UI.identityArt(m.email, 20, i * 30) +
-                '<span class="cell-stack"><span class="name">' + UI.esc(m.name === "—" ? m.email : m.name) + "</span>" +
+              '<span class="cell-main">' + UI.identityArt(m.email, 20, i * 30) + "</span>",
+              '<span class="cell-main"><span class="cell-stack">' +
+                '<span class="name">' + UI.esc(m.name === "—" ? m.email : m.name) + "</span>" +
                 '<span class="desc">' + UI.esc(m.name === "—" ? "invited as " + m.role : m.email) + "</span></span></span>",
-              roleCell(m),
+              ph ? roleText(m) : roleCell(m),
               memberStatus(m),
-              m.mfa ? UI.statusDot("positive", "Enrolled") : UI.statusDot("neutral", "Not enrolled"),
+              mfaCell(m),
               '<span class="date">' + UI.esc(m.last) + "</span>",
-              actionCell(m)
+              ph ? "" : actionCell(m)
             ]
           };
         }),
@@ -200,58 +375,22 @@
 
     // — wiring —
 
-    // role change: the select visually reverts until the step-up confirms
-    el.querySelectorAll("[data-role-sel]").forEach(function (sel) {
-      sel.addEventListener("change", function () {
-        var m = member(sel.getAttribute("data-role-sel"));
-        if (!m) return;
-        var newRole = sel.value;
-        sel.value = m.role; // revert; only a confirmed step-up changes it
-        UI.stepUp("Changing a role changes what " + m.name + " can do with the entity’s money.", function () {
-          Data.changeRole(m.email, newRole);
-        });
-      });
-    });
+    wireRoleSelects(el);
+    wireRemoves(el);
+    wireResends(el);
+    wireReminds(el);
 
-    // remove: arm on first click, step-up on the second. The armed state
-    // is visible (underlined, medium), says what the second click does, and
-    // disarms itself after 4s. An armed destructive control that looks
-    // identical to a resting one is a trap.
-    el.querySelectorAll("[data-rm]").forEach(function (b) {
-      var timer = null;
-      function disarm() {
-        clearTimeout(timer);
-        timer = null;
-        b.classList.remove("armed");
-        b.textContent = "Remove";
-      }
-      b.addEventListener("click", function () {
-        var email = b.getAttribute("data-rm");
-        if (!b.classList.contains("armed")) {
-          b.classList.add("armed");
-          b.textContent = "Click again to confirm";
-          timer = setTimeout(disarm, ARM_MS);
-          return;
-        }
-        disarm();
-        UI.stepUp("Removing a member revokes their access to the entity’s money. Their sessions end immediately.", function () {
-          Data.removeMember(email);
-        });
-      });
-    });
-
-    el.querySelectorAll("[data-resend]").forEach(function (b) {
-      b.addEventListener("click", function () {
-        var email = b.getAttribute("data-resend");
-        Data.resendInvite(email);
-        UI.toast("Invite re-sent to " + email + ".", "done");
-      });
-    });
-
-    el.querySelectorAll("[data-remind]").forEach(function (b) {
-      b.addEventListener("click", function () {
-        UI.toast("Reminder sent.", "done");
-      });
+    // the whole row opens the member drawer. A click that landed on one of
+    // the row's own controls belongs to that control, not to the row.
+    el.addEventListener("click", function (e) {
+      var t = e.target;
+      if (!t || !t.closest) return;
+      var r = t.closest(".row.clickable");
+      if (!r) return;
+      var ctl = t.closest("button, select, label, input");
+      if (ctl && ctl !== r) return;
+      var key = r.getAttribute("data-key");
+      if (key) openMember(key);
     });
 
     var expire = el.querySelector("#tmExpire");
@@ -264,6 +403,7 @@
 
   App.registerScreen("team", {
     title: "Team",
+    back: function () { return App.isPhone && App.isPhone() ? { id: "manage", label: "Manage" } : null; },
     subtitle: "Who can see and move the entity’s money",
     actions: function () {
       if (Data.state.role !== "admin") return "";

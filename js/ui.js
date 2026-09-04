@@ -195,6 +195,14 @@
   // Returns html. Rows carry data-key for delegation by the caller.
   var SPACER_TRACK = "minmax(24px, 1fr)";
 
+  // Phone roles (2026-09-04). A column may declare `m`, its role in the
+  // two-line phone row: "title" | "lead" | "amount" | "status" | "meta" |
+  // "hide". Cells then carry data-m and the row carries .m-row, and the phone
+  // layer lays them out as line 1 (lead · title · amount) over line 2
+  // (status · meta), dropping "hide" entirely — that fact lives in the row's
+  // drawer. A spec with no `m` anywhere renders byte-identically to before,
+  // so an unmigrated table is never at risk.
+
   UI.table = function (spec) {
     var cols = spec.cols;
     var grid = cols.map(function (c) { return c.w || (c.spacer ? SPACER_TRACK : "1fr"); }).join(" ");
@@ -221,7 +229,22 @@
       return cols.map(function (c) { return c.spacer ? "<span></span>" : cells[i++]; });
     }
 
-    var h = '<div class="table">';
+    // phone roles: present only if a column declares one
+    var hasM = cols.some(function (c) { return !!c.m; });
+    function mAttr(i) {
+      var c = cols[i];
+      return c && c.m ? ' data-m="' + c.m + '"' : "";
+    }
+    // wrap a rendered cell so the role lands on an element even when the
+    // screen handed us a bare string
+    function tagCell(html, i) {
+      if (!hasM) return html;
+      var a = mAttr(i);
+      if (!a) return html;
+      return '<span class="m-cell"' + a + ">" + html + "</span>";
+    }
+
+    var h = '<div class="table' + (hasM ? " has-m" : "") + '">';
     h += '<div class="table-header" style="grid-template-columns:' + grid + ';min-width:' + minW + 'px">' +
       cols.map(function (c) {
         if (c.spacer) return "<span></span>";
@@ -233,11 +256,11 @@
     }
     h += spec.rows.map(function (r) {
       if (r.group) return '<div class="group-label">' + UI.esc(r.group) + "</div>";
-      var cls = "row" + (r.cls ? " " + r.cls : "") + (r.selected ? " selected" : "") + (r.clickable ? " clickable" : "");
+      var cls = "row" + (r.cls ? " " + r.cls : "") + (r.selected ? " selected" : "") + (r.clickable ? " clickable" : "") + (hasM ? " m-row" : "");
       var tag = r.clickable ? "button" : "div";
       return "<" + tag + ' class="' + cls + '" style="grid-template-columns:' + grid + ';min-width:' + minW + 'px"' +
         (r.key ? ' data-key="' + UI.esc(r.key) + '"' : "") + (r.clickable ? ' type="button"' : "") + ">" +
-        cellsFor(r.cells).join("") + "</" + tag + ">";
+        (function (cs) { return cs.length === cols.length ? cs.map(tagCell) : cs; })(cellsFor(r.cells)).join("") + "</" + tag + ">";
     }).join("");
     return h + "</div>";
   };
@@ -259,6 +282,63 @@
   };
 
   // ————— copy row — data ids in mono, quiet copy affordance —————
+  // ————— amount input — thousands separators as you type —————
+  // Money is read in groups of three everywhere else in the app; an amount
+  // field that shows 1500000 while the figure beside it reads 1,500,000 is
+  // the app disagreeing with itself. Wire every amount input through here.
+  //   el       the <input> (inputmode="decimal")
+  //   opts     { dp: max decimals (default 2), onInput: fn(rawNumberString) }
+  // The caret is preserved by counting the digits to its left and replacing
+  // it after the same number of digits in the formatted string, so typing in
+  // the middle of a figure does not throw the cursor to the end.
+  UI.amountInput = function (el, opts) {
+    if (!el || el.__amtWired) return;
+    el.__amtWired = true;
+    opts = opts || {};
+    var dp = opts.dp === undefined ? 2 : opts.dp;
+
+    function format(raw) {
+      var neg = /^-/.test(raw);
+      var cleaned = raw.replace(/[^0-9.]/g, "");
+      var bits = cleaned.split(".");
+      var intPart = bits.shift().replace(/^0+(?=\d)/, "");
+      var dec = bits.length ? bits.join("").slice(0, dp) : null;
+      var grouped = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+      if (intPart === "" && dec === null) return "";
+      return (neg ? "-" : "") + (grouped || "0") + (dec !== null ? "." + dec : (/\.$/.test(cleaned) && dp > 0 ? "." : ""));
+    }
+
+    function digitsBefore(str, pos) {
+      var n = 0;
+      for (var i = 0; i < pos && i < str.length; i++) if (/[0-9]/.test(str[i])) n++;
+      return n;
+    }
+    function posAfterDigits(str, n) {
+      if (n <= 0) return 0;
+      var seen = 0;
+      for (var i = 0; i < str.length; i++) {
+        if (/[0-9]/.test(str[i])) seen++;
+        if (seen === n) return i + 1;
+      }
+      return str.length;
+    }
+
+    el.addEventListener("input", function () {
+      var before = el.value;
+      var caret = el.selectionStart === null ? before.length : el.selectionStart;
+      var d = digitsBefore(before, caret);
+      var next = format(before);
+      if (next !== before) {
+        el.value = next;
+        var np = posAfterDigits(next, d);
+        try { el.setSelectionRange(np, np); } catch (e) {}
+      }
+      if (opts.onInput) opts.onInput(el.value);
+    });
+    // a pasted or programmatic value formats too
+    if (el.value) el.value = format(el.value);
+  };
+
   UI.copyRow = function (label, value, opts) {
     opts = opts || {};
     return '<div class="copy-row"><span class="cr-label">' + UI.esc(label) + "</span>" +
