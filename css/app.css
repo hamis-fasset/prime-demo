@@ -33,7 +33,7 @@
 }
 .sidebar-head .wm-lock { height: 15px; width: auto; display: block; color: var(--text-strong); flex-shrink: 0; }
 .sidebar-head .wm-prime {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: var(--w-medium);
   letter-spacing: 0.14em;
   color: var(--text-subtle);
@@ -46,7 +46,7 @@
 .nav { padding: 4px 12px; display: flex; flex-direction: column; gap: 1px; }
 
 .nav-group-label {
-  font-size: 11px;
+  font-size: var(--text-12);
   font-weight: var(--w-medium);
   letter-spacing: 0.02em;
   text-transform: none;
@@ -242,7 +242,7 @@ kbd {
 .btn-ghost { color: var(--text-subtle); padding: 8px 10px; }
 .btn-ghost:hover { background: var(--bg-hover); color: var(--text-default); }
 
-.btn-danger-ghost { color: var(--negative); }
+.btn-danger-ghost { color: var(--negative-text); }
 .btn-danger-ghost:hover { background: var(--negative-tint); }
 /* external / irreversible confirmations only — louder, used once per flow */
 .btn-danger { background: var(--negative); color: oklch(1 0 0); }
@@ -265,8 +265,8 @@ kbd {
 /* a destructive link. Armed reads as armed: medium weight and underlined, so
    a control one click from removing something never looks like a resting one.
    Screens scope their own copies of this until they adopt the shared class. */
-.link-danger { color: var(--negative); }
-.link-danger:hover { color: var(--negative); }
+.link-danger { color: var(--negative-text); }
+.link-danger:hover { color: var(--negative-text); }
 .link-danger.armed { font-weight: var(--w-medium); text-decoration: underline; }
 
 /* ————— cards — only for objects. Numbers are open typography. ————— */
@@ -338,8 +338,8 @@ button.open-block:hover { background: var(--bg-hover); transition: none; }
 }
 .bal-value .money-dec { font-size: 0.62em; }
 .bal-delta { font-size: var(--text-12); margin-top: 7px; color: var(--text-subtle); }
-.bal-delta .up { color: var(--accent); }
-.bal-delta .down { color: var(--negative); }
+.bal-delta .up { color: var(--accent-text); }
+.bal-delta .down { color: var(--negative-text); }
 
 /* per-digit entrance for hero figures — digits assemble, they don't appear */
 .dg { display: inline-block; animation: dg-in 240ms var(--ease) both; }
@@ -384,7 +384,7 @@ button.open-block:hover { background: var(--bg-hover); transition: none; }
 .status-error .dot { background: var(--st-error); }
 .status-info .dot { background: var(--st-info); }
 /* only states a human must act on escalate to colored text */
-.status-error { color: var(--st-error); }
+.status-error { color: var(--negative-text); }
 
 /* metadata chip — sentence case, whisper volume */
 .tag {
@@ -502,7 +502,7 @@ button.open-block:hover { background: var(--bg-hover); transition: none; }
   color: var(--text-default);
   white-space: nowrap;
 }
-.row .amount.positive { color: var(--accent); }
+.row .amount.positive { color: var(--accent-text); }
 .row .amount.pending { color: var(--text-subtle); }
 
 /* ————— empty state — one quiet sentence, headers still rendered ————— */
@@ -660,7 +660,7 @@ button.open-block:hover { background: var(--bg-hover); transition: none; }
 .input, .select, textarea.input {
   width: 100%;
   background: var(--input);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-input);
   border-radius: var(--r-card);
   padding: 8px 11px;
   font-size: var(--text-13);
@@ -699,13 +699,13 @@ button.open-block:hover { background: var(--bg-hover); transition: none; }
 .field-row .field { flex: 1; }
 
 .hint { font-size: var(--text-12); color: var(--text-faint); margin-top: 6px; line-height: 1.45; }
-.hint.err { color: var(--negative); }
+.hint.err { color: var(--negative-text); }
 
 /* quiet inline note — one sentence, tinted at whisper volume */
 .note { font-size: var(--text-12); border-radius: var(--r-card); padding: 10px 13px; line-height: 1.5; }
 .note-info { background: color-mix(in srgb, var(--st-info) 8%, transparent); color: var(--text-default); }
 .note-warning { background: var(--warning-tint); color: var(--text-default); }
-.note-error { background: var(--negative-tint); color: var(--negative); }
+.note-error { background: var(--negative-tint); color: var(--negative-text); }
 .note-positive { background: var(--accent-tint); color: var(--text-default); }
 
 /* option list rows (destination picker etc.) */
@@ -738,7 +738,7 @@ button.open-block:hover { background: var(--bg-hover); transition: none; }
 .seg-btn.active { background: var(--card-bg); color: var(--text-strong); box-shadow: var(--elev-1); }
 /* mini seg: display prefs riding an eyebrow line (the hero denomination) */
 .seg-mini { padding: 2px; }
-.seg-mini .seg-btn { padding: 2px 9px; font-size: 11px; }
+.seg-mini .seg-btn { padding: 2px 9px; font-size: var(--text-12); }
 .bal-label .seg-mini { margin-left: 10px; }
 
 /* dark: unselected toggle text read murky (a greenish mid-gray on a dark
@@ -895,7 +895,7 @@ button.open-block:hover { background: var(--bg-hover); transition: none; }
 }
 .bare-header .wm-lock { height: 15px; color: var(--text-strong); }
 .bare-header .wm-prime {
-  font-size: 10px; font-weight: var(--w-medium); letter-spacing: 0.14em;
+  font-size: 11px; font-weight: var(--w-medium); letter-spacing: 0.14em;
   color: var(--text-subtle); border: 1px solid var(--border-strong);
   border-radius: var(--r-tag); padding: 1px 6px; margin-left: 2px;
 }
@@ -1055,7 +1055,7 @@ body:not(.demo-on) .section:has(> .demo-strip) { display: none; }
    allows exactly one hue colouring text, and this is it. An amber figure would
    be a second one. Waiting-on-a-human belongs in the status dot beside the
    figure, not in the figure. */
-.amount.error, .if-amt.error { color: var(--st-error); }
+.amount.error, .if-amt.error { color: var(--negative-text); }
 
 /* ───── a tighter empty state ─────
    36px, for an empty region inside a page that already has other content. The
@@ -1275,7 +1275,7 @@ body:not(.demo-on) .section:has(> .demo-strip) { display: none; }
     background: none;
     border: none;
     font: inherit;
-    font-size: 9px;
+    font-size: 11px;
     color: var(--text-faint);
     cursor: pointer;
   }

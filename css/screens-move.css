@@ -137,7 +137,7 @@
 .field-row .field.mv-narrow { flex: 0 0 138px; }
 .mv-avail-sub { font-size: var(--text-12); color: var(--text-subtle); text-align: right; padding-bottom: 7px; font-variant-numeric: tabular-nums; }
 /* the most consequential line in this column, so it reads at body size */
-.mv-avail-held { font-size: var(--text-13); color: var(--st-error); text-align: right; padding-bottom: 7px; line-height: 1.45; font-variant-numeric: tabular-nums; }
+.mv-avail-held { font-size: var(--text-13); color: var(--negative-text); text-align: right; padding-bottom: 7px; line-height: 1.45; font-variant-numeric: tabular-nums; }
 .mv-sum { margin-bottom: 16px; }
 
 /* — quiet demo affordances (prototype furniture, .db-btn restraint).
@@ -155,10 +155,10 @@
 .wl-addr { display: block; font-family: var(--font-mono); font-size: var(--text-12); color: var(--text-subtle); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* reason sentences are the point of this screen: body size, not caption */
 .wl-sub { display: block; font-size: var(--text-13); color: var(--text-subtle); margin-top: 3px; line-height: 1.45; white-space: normal; }
-.wl-sub.err { color: var(--st-error); }
+.wl-sub.err { color: var(--negative-text); }
 .wl-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; flex-wrap: wrap; text-align: right; }
-.wl-rm { color: var(--negative); }
-.wl-rm:hover { color: var(--negative); opacity: 0.8; }
+.wl-rm { color: var(--negative-text); }
+.wl-rm:hover { color: var(--negative-text); opacity: 0.8; }
 .wl-test { display: flex; align-items: center; gap: 8px; }
 .wl-test .input { width: 128px; padding: 5px 9px; font-size: var(--text-12); font-variant-numeric: tabular-nums; }
 

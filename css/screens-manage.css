@@ -66,9 +66,9 @@
    .link-danger in app.css; scoped here until that lands, so the two can
    never disagree. Armed says what the next click does and looks different
    while it waits, and it disarms itself after 4s (team.js). */
-.row .link-danger { color: var(--negative); }
+.row .link-danger { color: var(--negative-text); }
 .row .link-danger.armed {
-  color: var(--negative);
+  color: var(--negative-text);
   font-weight: var(--w-medium);
   text-decoration: underline;
   text-underline-offset: 2px;

@@ -110,7 +110,7 @@
 }
 .ob-door-brand .wm-lock { height: 16px; width: auto; display: block; color: var(--on-ink); flex: none; }
 .ob-door-brand .wm-prime {
-  font-size: 10px; font-weight: var(--w-medium); letter-spacing: 0.14em;
+  font-size: 11px; font-weight: var(--w-medium); letter-spacing: 0.14em;
   color: var(--on-ink); opacity: 0.8;
   border: 1px solid color-mix(in srgb, var(--on-ink) 40%, transparent);
   border-radius: var(--r-tag); padding: 1px 6px; margin-left: 2px;
@@ -316,11 +316,11 @@
 .wiz-num {
   width: 20px; height: 20px; border-radius: 50%; flex: none;
   display: inline-flex; align-items: center; justify-content: center;
-  background: var(--surface-2); color: var(--text-subtle); font-size: 11px;
+  background: var(--surface-2); color: var(--text-subtle); font-size: var(--text-12);
   font-variant-numeric: tabular-nums;
 }
-.wiz-step.donestep .wiz-num { background: var(--accent-tint); color: var(--accent); }
-.wiz-lock { margin-left: auto; font-size: 11px; color: var(--text-faint); flex: none; }
+.wiz-step.donestep .wiz-num { background: var(--accent-tint); color: var(--accent-text); }
+.wiz-lock { margin-left: auto; font-size: var(--text-12); color: var(--text-faint); flex: none; }
 .wiz-step > span:not(.wiz-num):not(.wiz-lock) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wiz-body { min-width: 0; }
 /* an empty state inside the wizard body is a step-level absence, not a
@@ -348,7 +348,7 @@
   background: var(--st-positive); flex: none;
   transform: translateY(-1px);
 }
-.up-box.up-err .up-meta { color: var(--negative); }
+.up-box.up-err .up-meta { color: var(--negative-text); }
 .up-box .btn { flex: none; }
 .up-fb { display: flex; gap: 10px; }
 .up-fb > div { flex: 1; min-width: 0; }
@@ -360,14 +360,14 @@
 .lead-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
 .lead-head h4 { font-size: var(--text-13); font-weight: var(--w-medium); }
 .lead-head .link { margin-left: auto; }
-.lead-head .link-danger { color: var(--negative); }
+.lead-head .link-danger { color: var(--negative-text); }
 .field.field-own { flex: 0 0 130px; }
 .field.field-flush { margin-bottom: 0; }
 .lead-foot { display: flex; align-items: center; gap: 14px; margin-top: 14px; font-size: var(--text-12); color: var(--text-subtle); flex-wrap: wrap; }
 .lead-foot strong { color: var(--text-default); }
 /* an ownership total over 100 is a failure, and failure is the one thing
    the law lets colour the text */
-.lead-foot.over strong { color: var(--negative); }
+.lead-foot.over strong { color: var(--negative-text); }
 
 /* the review moment */
 .rev-group { margin-top: 24px; }
