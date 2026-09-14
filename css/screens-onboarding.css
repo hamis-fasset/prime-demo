@@ -407,3 +407,10 @@
 
   .ob-cta-row .btn-primary { flex: 1 1 auto; }
 }
+
+/* ————— 2026-09-14: the front door gate —————
+   An optional label suffix (the referral code is the one optional field in
+   signup), and the proof upload reusing the wizard's .up-box grammar. */
+.ob-opt { font-weight: var(--w-body); color: var(--text-faint); margin-left: 6px; font-size: var(--text-12); }
+.ob-body .select { width: 100%; }
+.hub-id { margin-top: 2px; }

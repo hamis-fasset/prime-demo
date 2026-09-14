@@ -549,6 +549,7 @@
   function lockedZoneHtml() {
     var r = Data.state.journey.review;
     var line = {
+      submitted: "Submitted.",
       in_review: "Pending review.",
       parked: "Pending review.",
       approved: "Approved.",
@@ -574,7 +575,7 @@
     if (right) right.textContent = window.PrimeOnboarding ? PrimeOnboarding.email() : Data.state.user.email;
 
     var r = Data.state.journey.review;
-    if (["in_review", "parked", "approved", "rejected"].indexOf(r) >= 0) {
+    if (["submitted", "in_review", "parked", "approved", "rejected"].indexOf(r) >= 0) {
       el.insertAdjacentHTML("beforeend", lockedZoneHtml());
       el.querySelector("#wizToHub").addEventListener("click", function () { App.go("hub"); });
       return;
@@ -721,7 +722,9 @@
         UI.settleFlash(sub.parentNode);
         UI.toast(resub ? "Resubmitted." : "Submitted.", "done");
         setTimeout(function () {
-          Data.setJourney({ review: "in_review", submittedIso: new Date().toISOString(), comments: [] });
+          // KYC collected is not compliance assigned (2026-09-14): the file
+          // sits with sales as Submitted until they mark it ready for review
+          Data.setJourney({ review: "submitted", submittedIso: new Date().toISOString(), comments: [] });
           W = null; // the journey is with the reviewer now
           App.go("hub");
         }, 420);

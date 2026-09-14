@@ -367,21 +367,7 @@
         '<p class="freshline mt-16">Declining leaves you exactly where you started.</p>';
     }
 
-    if (Q.state === "placed") {
-      var t = Q.booked;
-      var head = t.state === "awaiting" ? "Order initiated · awaiting funding"
-        : t.state === "settling" ? "Funded · booked at your locked rate" : "Completed";
-      var note = t.state === "awaiting"
-        ? '<div class="note note-warning tq-note mt-16">Your rate is locked. ' + UI.money(t.payCur, t.needed) +
-          ' still needed within 24 hours. <button class="link" id="tqDeposit" type="button">View your deposit details</button></div>'
-        : t.state === "settling"
-        ? '<div class="note note-info tq-note mt-16">Funds release within 30 minutes.</div>'
-        : '<div class="note note-positive tq-note mt-16">Completed. The proceeds are in your available balance.</div>';
-      return headline(head) + orderSummary(t) + note +
-        '<div class="tq-actions">' +
-          (t.state === "awaiting" ? "" : '<button class="btn btn-primary" id="tqRepeatLast" type="button">Repeat</button>') +
-          '<button class="btn btn-secondary" id="tqDone" type="button">Done</button></div>';
-    }
+    if (Q.state === "placed") return orderPanelHtml(Q.booked);
 
     if (Q.state === "overlimit") {
       // higher limits are an offline conversation, never an in-app order
@@ -392,6 +378,108 @@
     }
 
     return "";
+  }
+
+  // ————— after execute: the order as one object (2026-09-14) —————
+  // The state is the title. The figure is the one number that matters now:
+  // what is still needed, or what you receive. Under it, the lifecycle as
+  // the shared timeline (Initiated · Funded · Completed), then the one
+  // action. Nothing is a note; the deposit details are a sheet.
+
+  function orderTimeline(t) {
+    var placed = UI.fmtTs(t.stamps.placed || t.ts);
+    if (t.state === "failed") {
+      return [{ label: "Initiated", state: "done", time: placed }, { label: "Failed", state: "failed" }];
+    }
+    return [
+      { label: "Initiated", state: "done", time: placed },
+      { label: t.state === "awaiting" ? "Awaiting funding" : "Funded",
+        state: t.state === "awaiting" ? "pending" : "done",
+        time: t.stamps.funded ? UI.fmtTs(t.stamps.funded) : "" },
+      { label: t.state === "settled" ? "Completed" : "Processing",
+        state: t.state === "settled" ? "done" : t.state === "settling" ? "active" : "todo",
+        time: t.stamps.settled ? UI.fmtTs(t.stamps.settled) : "" }
+    ];
+  }
+
+  function orderHero(cur, amt, line) {
+    return '<div class="tx-order-need">' +
+      '<div class="bal-value" id="tqNeed">' + UI.moneyHero(cur, amt, { dp: cur === "USDT" ? 0 : 2, symbol: true }) + "</div>" +
+      (line ? '<p class="tx-order-line">' + line + "</p>" : "") +
+      "</div>";
+  }
+
+  function orderPanelHtml(t) {
+    var rcv = Data.receiveLeg(t);
+    var spine = '<div class="tx-order-spine">' + UI.timeline(orderTimeline(t)) + "</div>";
+    var ref = '<p class="tx-order-ref">' + UI.esc(t.id) + " · 1 USDT = " + rate4(t.rate) + " " + UI.esc(Data.fiatOf(t.pair)) + "</p>";
+
+    if (t.state === "awaiting") {
+      return headline("Fund this order.") +
+        orderHero(t.payCur, t.needed, "Your rate holds until " + UI.esc(UI.fmtTs(Data.fundingDeadline(t))) + ".") +
+        spine +
+        '<button class="btn btn-primary btn-lg tx-cta" id="tqFundSheet" type="button">' +
+          (t.payCur === "USDT" ? "Send USDT" : "Fund by bank transfer") + "</button>" +
+        '<div class="tx-under"><button class="link" id="tqDone" type="button">Later</button></div>' + ref;
+    }
+    if (t.state === "settling") {
+      return headline("Funded.") +
+        orderHero(rcv.cur, rcv.amt, "Lands in your balance by " + UI.esc(UI.fmtTime(Data.settleEta(t))) + ".") +
+        spine +
+        '<div class="tq-actions"><button class="btn btn-primary" id="tqDone" type="button">Done</button>' +
+          '<button class="btn btn-secondary" id="tqRepeatLast" type="button">Repeat</button></div>' + ref;
+    }
+    if (t.state === "failed") {
+      return headline("Order failed.") +
+        '<p class="tq-statement">The funding window ran out. Nothing was taken.</p>' +
+        spine +
+        '<div class="tq-actions"><button class="btn btn-primary" id="tqRepeatLast" type="button">Trade again</button>' +
+          '<button class="btn btn-secondary" id="tqDone" type="button">Done</button></div>' + ref;
+    }
+    return headline("Completed.") +
+      orderHero(rcv.cur, rcv.amt, "In your available balance.") +
+      spine +
+      '<div class="tq-actions"><button class="btn btn-primary" id="tqDone" type="button">Done</button>' +
+        '<button class="btn btn-secondary" id="tqRepeatLast" type="button">Repeat</button></div>' + ref;
+  }
+
+  // the funding sheet: the exact shortfall and the copy-ready details for the
+  // currency the order is paid in, the order id as the reference. Closes on
+  // its own the moment funding lands (webhook), never on a client claim.
+  function openFundSheet(t) {
+    var cur = t.payCur, needed = t.needed;
+    var dp = cur === "USDT" ? 0 : 2;
+    // copyRow escapes its value, so the amount is plain text here, not the money markup
+    var body = UI.copyRow("Amount", cur + " " + UI.fmtNum(needed, dp), { copy: String(Number(needed.toFixed(dp))) });
+    if (cur === "USDT") {
+      body += UI.copyRow("Address", Data.USDT_ADDRS.TRC20, { mono: true, copy: Data.USDT_ADDRS.TRC20 }) +
+        '<div class="copy-row"><span class="cr-label">Network</span><span class="cr-value">TRC20 · Tron</span></div>';
+    } else {
+      var v = Data.VIBANS[cur] || Data.VIBANS.AED;
+      body += UI.copyRow("IBAN", v.iban, { mono: true, copy: v.copy }) +
+        // verbatim: the sending bank checks this string against ours
+        UI.copyRow("Account name", Data.ACCOUNT_NAME, { copy: Data.ACCOUNT_NAME }) +
+        '<div class="copy-row"><span class="cr-label">Bank</span><span class="cr-value">Zand Bank · Dubai, UAE</span></div>' +
+        UI.copyRow("Reference", t.id, { mono: true, copy: t.id });
+    }
+    body += '<p class="tx-order-line mt-16">Your rate holds until ' + UI.esc(UI.fmtTs(Data.fundingDeadline(t))) + ".</p>";
+    body += '<div class="demo-strip mt-16"><span class="freshline">Demo · the bank or the chain confirms it.</span>' +
+      '<button class="db-btn" id="tqSheetFund" type="button">Webhook: funding arrives</button></div>';
+
+    var onData = null;
+    var h = UI.drawer("Fund " + t.id, body, {
+      width: 480,
+      foot: '<button class="btn btn-secondary" id="tqSheetClose" type="button">Close</button>',
+      onClose: function () { if (onData) Data.off(onData); onData = null; }
+    });
+    h.el.querySelector("#tqSheetClose").addEventListener("click", h.close);
+    h.el.querySelector("#tqSheetFund").addEventListener("click", function () {
+      if (!Data.fundOrder(t.id)) UI.toast("This order is no longer awaiting funding.", "blocked");
+    });
+    onData = function (scope) {
+      if (scope === "trades" && t.state !== "awaiting") h.close();
+    };
+    Data.on(onData);
   }
 
   function orderSummary(t) {
@@ -496,7 +584,6 @@
       Q.justRepriced = false;
     }
     if (Q.state === "placed" && Q.justBooked) {
-      digits(byId("tqBookedRate"), rate4(Q.booked.rate), 18);
       settleFlash(p.querySelector("#tqHead h2"));
       Q.justBooked = false;
     }
@@ -546,11 +633,7 @@
     on("tqDecline", function () { Q.state = "idle"; renderPanel(); });
     on("tqDone", function () { Q.state = "idle"; renderPanel(); });
     on("tqRepeatLast", function () { repeat(Q.booked); });
-    on("tqDeposit", function () {
-      var b = App.screen("balance");
-      if (b && b.setCur && Q.booked) b.setCur(Q.booked.payCur || fiat());
-      App.go("balance");
-    });
+    on("tqFundSheet", function () { if (Q.booked) openFundSheet(Q.booked); });
     on("tqGtrGo", function () {
       Q.gtrSent = true;
       renderPanel();

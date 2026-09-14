@@ -60,6 +60,7 @@
     return {
       not_started: "Verify your account.",
       in_progress: "Verification in progress.",
+      submitted: "Submitted.",
       parked: "Pending review.",
       in_review: "Pending review.",
       needs_info: "Needs your input.",
@@ -74,6 +75,8 @@
     var j = J(), r = j.review;
     var sub = j.submittedIso ? UI.fmtTs(j.submittedIso) : "";
     var t = [{ label: "Account created", state: "done" }];
+    // qualification is the pipeline entry (the deal exists from here)
+    if (j.qualified) t.push({ label: "Qualified", state: "done", time: j.qual && j.qual.ts ? UI.fmtTs(j.qual.ts) : "" });
 
     if (r === "not_started" || r === "in_progress") {
       t.push({ label: "Verification", state: r === "in_progress" ? "active" : "todo" });
@@ -87,7 +90,12 @@
       return t;
     }
     t.push({ label: "Submitted", state: "done", time: sub });
-    if (r === "in_review") {
+    if (r === "submitted") {
+      // KYC is in; sales is qualifying the deal. Compliance has not been
+      // handed the file yet, so nothing is "pending review" (2026-09-14)
+      t.push({ label: "Pending review", state: "todo" });
+      t.push({ label: "Approved", state: "todo" });
+    } else if (r === "in_review") {
       // waiting on the reviewer, a human: amber, never the in-process blue
       t.push({ label: "Pending review", state: "pending" });
       t.push({ label: "Approved", state: "todo" });
@@ -203,7 +211,7 @@
       if (!canAct()) return viewerLine;
       return '<div class="ob-cta-row"><button class="btn btn-primary btn-lg" id="hubFix" type="button">Fix and resubmit</button></div>';
     }
-    // in_review · parked · rejected: nothing to do here but reach us
+    // submitted · in_review · parked · rejected: nothing to do here but reach us
     return '<div class="ob-cta-row">' + contact + "</div>";
   }
 
@@ -222,6 +230,9 @@
       // (8px offset + 1px rule), so the completion mark arrives and leaves
       // without moving a word of the copy under it.
       '<div class="hub-settle"></div>' +
+      // the one id we share: what a client quotes to us, and what Optimus and
+      // HubSpot both carry
+      (J().clientId ? '<p class="ob-sub hub-id">Client ID <strong>' + UI.esc(J().clientId) + "</strong></p>" : "") +
       staleHtml() +
       '<div class="hub-timeline">' + UI.timeline(timelineItems()) + "</div>" +
       rowsHtml() +
@@ -229,7 +240,8 @@
   }
 
   var PUSHES = [
-    { s: "in_review", label: "Submitted → in review" },
+    { s: "submitted", label: "Reset: KYC submitted (with sales)" },
+    { s: "in_review", label: "Sales: mark ready for compliance" },
     { s: "needs_info", label: "Reviewer: request info (2 comments)" },
     { s: "approved_issuing", label: "Reviewer: approve (rails being issued)" },
     { s: "approved", label: "Reviewer: approve (rails issued)" },
@@ -281,7 +293,12 @@
     var fix = host.querySelector("#hubFix");
     if (fix) fix.addEventListener("click", function () { App.go("kyc"); });
     var goApp = host.querySelector("#hubGo");
-    if (goApp) goApp.addEventListener("click", function () { App.go("dashboard"); });
+    if (goApp) goApp.addEventListener("click", function () {
+      // first entry after approval enrolls the authenticator (2FA is for the
+      // platform, not for onboarding: Mehtap, 2026-09-14)
+      if (!J().mfaEnrolled && window.PrimeOnboarding && PrimeOnboarding.enrollMfa) { PrimeOnboarding.enrollMfa("dashboard"); return; }
+      App.go("dashboard");
+    });
     var dep = host.querySelector("#hubDeposit");
     if (dep) dep.addEventListener("click", openDeposit);
 

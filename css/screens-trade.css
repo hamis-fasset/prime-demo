@@ -403,3 +403,14 @@
 /* trade history amounts: left-aligned with their headers, tabular */
 .txh-amt { font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
 .txh-amt.sub, .txh-amt.sub .money-sym, .txh-amt.sub .money-dec, .txh-amt.sub .money-ccy { color: var(--text-subtle); }
+
+/* ————— 2026-09-14: the order after execute —————
+   The state is the title; the one figure that matters now (still needed, or
+   what you receive) is the 42px money set; the lifecycle is the shared
+   timeline; the order id and rate are one quiet line at the bottom. */
+.tx-order-need { margin-top: 4px; }
+.tx-order-need .bal-value { margin-top: 4px; }
+.tx-order-line { margin-top: 8px; font-size: var(--text-13); color: var(--text-subtle); }
+.tx-order-spine { margin-top: 22px; }
+.tx-order-ref { margin-top: 18px; font-size: var(--text-12); color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.drawer .demo-strip { margin-top: 16px; }

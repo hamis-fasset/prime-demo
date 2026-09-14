@@ -48,12 +48,13 @@
   // ————— the §6 contract, row for row —————
   var MAPROWS = [
     { pillar: "Pillar 1 · Sign up without us" },
-    { a: "Sign up (account created)", o: "Applicants triage queue (qualify, park, dismiss)", h: "Contact created; funnel event via the visibility feed", b: "Triage: " + BUILD + " · feed: " + BUILD },
-    { a: "Qualify (or get parked)", o: "Same triage queue", h: "Funnel stage event; drop-off nudge emails (stay in HubSpot)", b: BUILD },
-    { a: "Submit KYC", o: "KYC review queue with granular rejections", h: "KYC status writes (non-blocking, exist today)", b: SHIPPED },
+    { a: "Create an account (email verified)", o: "Client record minted with the one client id (PRM-…) both systems carry", h: "Contact created + funnel event. No deal yet", b: BUILD + sub("stage 1 of the pipeline, 2026-09-14") },
+    { a: "Arrive with a referral or sales code (or a referral link)", o: "Attribution: referral · sales · marketing. IB link confirmed at review", h: "Lead source on the contact", b: BUILD },
+    { a: "Qualify (entity · monthly volume · minimum balance with proof · funds from)", o: "Triage queue: qualified · parked · not eligible. Criteria are Maks's to write; sales can qualify a parked lead from Optimus", h: "Deal created at Qualified. This is pipeline entry", b: BUILD + sub("stage 2") },
+    { a: "Submit KYC", o: "KYC collected; reviewer auto-assigned by country and flow of funds; sales marks the file ready for compliance", h: "Deal stage Screening", b: "Collection: " + SHIPPED + " · assignment and ready flag: " + BUILD + sub("stage 3") },
     { a: "Sighted resubmit", o: "Reviewer comments that reach the client", h: "Status write", b: BUILD + sub("small · no comment field exists anywhere today") },
-    { a: "Get approved (rails issued)", o: "Issue wallet and vIBAN at onboarding", h: "Activation email (stays in HubSpot)", b: SPECCED + sub("jobs 15, 24") },
-    { a: "Enroll MFA / step-up", o: "None · portal auth stack, no §6 back-office row", h: "Nothing", b: BUILD + sub("portal-side") },
+    { a: "Get approved (rails issued)", o: "Issue wallet and vIBAN at onboarding", h: "Deal stage Activated; activation email (stays in HubSpot)", b: SPECCED + sub("stage 4 · jobs 15, 24") },
+    { a: "Enroll MFA on first entry (after approval, never in signup)", o: "None · portal auth stack, no §6 back-office row", h: "Nothing", b: BUILD + sub("portal-side") },
     { a: "Invite a teammate", o: "None yet · roles model desk-visible later", h: "Nothing", b: BUILD + sub("proposed 12.1, staged") },
 
     { pillar: "Pillar 2 · Trade on a firm price" },
@@ -182,6 +183,8 @@
       '<span class="ml-val">Capabilities ship to Optimus first, stabilise about a week, then reveal in Prime.</span></div>' +
       '<div class="ml-row"><span class="ml-key">HubSpot posture · locked</span>' +
       '<span class="ml-val">HubSpot sees, never masters. Pre-deal comms, nudge emails, chat and the AML archive stay there. Optimus is the system of record.</span></div>' +
+      '<div class="ml-row"><span class="ml-key">Pipeline · proposed 2026-09-14</span>' +
+      '<span class="ml-val">1 Account created (contact, funnel event, no deal) · 2 Qualified (deal created; pipeline entry) · 3 Screening (KYC submitted; compliance owns it once sales marks it ready) · 4 Activated (approved). Only qualified applicants ever reach compliance.</span></div>' +
       "</div>";
 
     // — legend + filter, one line, the only controls on the page —

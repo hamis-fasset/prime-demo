@@ -79,6 +79,30 @@
 
   var nextIds = { dep: 2215, wd: 1089, trade: 9932, wallet: 6, bank: 5, notif: 100, desk: 1042 };
 
+  // ————— qualification: the front-door gate (2026-09-14) —————
+  // Hamis, 2026-09-14: a minimum balance of USD 50,000, proved with a bank
+  // statement (or an exchange statement / wallet balance when held in crypto),
+  // and an expected monthly trade volume, both as easy-select options.
+  // Volume is collected, not gated. Jurisdiction: a country we don't list goes
+  // to triage (parked). PLACEHOLDER: the full answer-to-outcome table is
+  // Maks's to write (he offered in the thread); this is the shape it plugs into.
+  var QUAL = {
+    MIN_BALANCE_USD: 50000,
+    balances: ["Under $50,000", "$50,000 to $250,000", "$250,000 to $1,000,000", "Over $1,000,000"],
+    volumes: ["Under $100,000", "$100,000 to $1,000,000", "$1,000,000 to $10,000,000", "Over $10,000,000"],
+    jurisdictions: ["United Arab Emirates", "Saudi Arabia", "Qatar", "Bahrain", "United Kingdom", "Singapore", "Somewhere else"],
+    held: [
+      { v: "bank", label: "A bank account", proof: "Bank statement", types: "PDF" },
+      { v: "exchange", label: "A crypto exchange", proof: "Exchange account statement", types: "PDF, JPG or PNG" },
+      { v: "wallet", label: "A self-custody wallet", proof: "Wallet balance screenshot", types: "JPG or PNG" }
+    ]
+  };
+  function mintClientId() {
+    var al = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789", out = "PRM-";
+    for (var i = 0; i < 6; i++) out += al[Math.floor(Math.random() * al.length)];
+    return out;
+  }
+
   // ————— seed state —————
 
   var S = {
@@ -103,7 +127,17 @@
 
     bal: { AED: 12485320.50, USD: 1204880.00, EUR: 460000.00, BHD: 85000.000, USDT: 3145220.10 },
 
-    journey: { review: "not_started", entity: "institution", submittedIso: null, comments: [], rejectedReason: null, railsIssuing: false },
+    // review: not_started → in_progress → submitted (KYC in, sales qualifying)
+    //         → in_review (with compliance) → needs_info | approved | rejected · parked
+    // clientId is minted at account creation and is the one id Optimus and
+    // HubSpot both carry. channel is the attribution: referral (an IB or a
+    // referral code) · sales (a sales link or code) · marketing (came in cold).
+    // qual is the qualification record; qualified is the gate to KYC.
+    // mfaEnrolled: the seeded account is enrolled; a new signup enrolls after
+    // approval, on first entry (Mehtap, 2026-09-14: 2FA is for the platform,
+    // not for onboarding).
+    journey: { review: "not_started", entity: "institution", submittedIso: null, comments: [], rejectedReason: null, railsIssuing: false,
+      clientId: "PRM-7K2D4Q", refCode: null, channel: "sales", qualified: true, qual: null, mfaEnrolled: true },
 
     deposits: [
       { id: "D-2214", cur: "AED", amount: 2450000.00, state: "processing", via: "bank", ts: agoIso(74), crTs: null, sender: "Emirates NBD · AE45 0260 ···· 4471" },
@@ -229,7 +263,7 @@
 
   var Data = {
     state: S,
-    REF: REF, SPREAD: SPREAD, LIMIT_AED: LIMIT_AED, LOCK_SECS: LOCK_SECS, TEST_AMT: TEST_AMT,
+    REF: REF, SPREAD: SPREAD, LIMIT_AED: LIMIT_AED, LOCK_SECS: LOCK_SECS, TEST_AMT: TEST_AMT, QUAL: QUAL,
     VIBANS: VIBANS, ACCOUNT_NAME: ACCOUNT_NAME, USDT_ADDRS: USDT_ADDRS,
     CUR_NAMES: CUR_NAMES,
     curName: function (cur) { return CUR_NAMES[cur] || cur; },
@@ -376,6 +410,12 @@
     // ————— trade math (quotes are screen-local; ledger changes live here) —————
 
     fiatOf: function (pair) { return pair.split("/")[1]; },
+    // what the client receives on an order, and when funding must land
+    receiveLeg: function (t) {
+      return t.side === "buy" ? { cur: "USDT", amt: t.assetAmt } : { cur: Data.fiatOf(t.pair), amt: t.fiatAmt };
+    },
+    fundingDeadline: function (t) { return new Date(new Date(t.stamps.placed || t.ts).getTime() + 24 * 3600000).toISOString(); },
+    settleEta: function (t) { return new Date(new Date(t.stamps.funded || t.ts).getTime() + 30 * 60000).toISOString(); },
     refRate: function (pair) { return REF[pair]; },
     notionalAED: function (pair, amt) { return amt * REF["USDT/AED"]; }, // amt is USDT; AED value is pair-independent
     fxAED: function (cur) { return FX_AED[cur] || 1; },
@@ -514,6 +554,36 @@
       Object.keys(patch).forEach(function (k) { S.journey[k] = patch[k]; });
       emit("journey");
     },
+
+    // account created (email verified). Mints the one client id that Optimus
+    // and HubSpot both carry from here on, records the attribution channel,
+    // and opens a fresh journey. HubSpot gets a contact and a funnel event;
+    // no deal exists yet (pipeline proposal, 2026-09-14).
+    createAccount: function (a) { // { name, email, refCode }
+      var code = (a.refCode || "").trim().toUpperCase();
+      S.journey = { review: "not_started", entity: "institution", submittedIso: null, comments: [], rejectedReason: null, railsIssuing: false,
+        clientId: mintClientId(), refCode: code || null,
+        channel: !code ? "marketing" : code.indexOf("SL-") === 0 ? "sales" : "referral",
+        qualified: false, qual: null, mfaEnrolled: false };
+      emit("journey");
+      return S.journey;
+    },
+    // the qualification gate. Returns "qualified" (deal created at Qualified,
+    // KYC opens), "parked" (triage in Optimus decides) or "ineligible" (told
+    // so, sent away; sales can still qualify them from Optimus later).
+    qualify: function (q, forcePark) { // { entity, vol, balance, held, jur }
+      var outcome = "qualified";
+      if (q.balance === QUAL.balances[0]) outcome = "ineligible";
+      else if (forcePark || q.jur === QUAL.jurisdictions[QUAL.jurisdictions.length - 1]) outcome = "parked";
+      S.journey.entity = q.entity;
+      S.journey.qual = { vol: q.vol, balance: q.balance, held: q.held, jur: q.jur, outcome: outcome, ts: nowIso() };
+      S.journey.qualified = outcome === "qualified";
+      S.journey.comments = [];
+      S.journey.review = outcome === "qualified" ? "in_progress" : outcome === "parked" ? "parked" : "not_started";
+      emit("journey");
+      return outcome;
+    },
+    setMfaEnrolled: function (v) { S.journey.mfaEnrolled = !!v; emit("journey"); },
 
     // notifications. kind is the toast's glyph: "done" for a confirmation
     // (the default, since a notification normally reports something that
@@ -681,8 +751,9 @@
       emit("withdrawals");
       return w;
     },
-    fundOrder: function () { // webhook: funding arrives for the oldest awaiting order
-      var t = S.trades.filter(function (x) { return x.state === "awaiting"; }).pop();
+    fundOrder: function (id) { // webhook: funding arrives, referenced to an order (or the oldest awaiting one)
+      var t = id ? S.trades.filter(function (x) { return x.id === id && x.state === "awaiting"; })[0]
+        : S.trades.filter(function (x) { return x.state === "awaiting"; }).pop();
       if (!t) return null;
       S.bal[t.payCur] = Math.max(0, S.bal[t.payCur] + t.needed - t.payAmt);
       t.needed = 0; t.state = "settling"; t.stamps.funded = nowIso();
@@ -745,7 +816,7 @@
       } else {
         if (st === "approved") S.journey.railsIssuing = false;
         S.journey.review = st;
-        if (st === "in_review") S.journey.submittedIso = nowIso();
+        if ((st === "in_review" || st === "submitted") && !S.journey.submittedIso) S.journey.submittedIso = nowIso();
         if (st === "needs_info") {
           // the set matching the journey's entity type, copied so a screen
           // reading state can never mutate the seed
