@@ -437,7 +437,9 @@
     document.body.appendChild(veil);
     setTimeout(function () { veil.remove(); }, 400);
 
-    App.go("dashboard"); // seeded as an established, approved account
+    // every visitor lands on the front door (Hamis, 2026-09-15). The seeded,
+    // approved account is one Log in away; the demo bar still jumps anywhere.
+    App.go("onboarding");
     setTimeout(function () {
       booted = true;
       var shell = root.querySelector(".shell");
