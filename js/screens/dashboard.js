@@ -81,7 +81,7 @@
   }
 
   function heroSeg() {
-    return '<span class="seg seg-mini">' + ["AED", "USDT"].map(function (c) {
+    return '<span class="seg seg-mini">' + ["USDT", "AED"].map(function (c) {
       return '<button class="seg-btn' + (Data.state.totalCur === c ? " active" : "") +
         '" data-totcur="' + c + '" type="button">' + c + "</button>";
     }).join("") + "</span>";
@@ -321,21 +321,31 @@
   // ————— the mini trade object —————
   // The dashboard's one action, inline. It carries intent to the Trade screen
   // rather than pricing here: no quote is fetched, nothing is locked.
+  // both legs are selectable (Hamis, 16 Sep). We only trade USDT against fiat,
+  // so picking a fiat on the buy side forces USDT on the pay side and back.
+  var miniBuy = "USDT", miniPay = "AED";
+  function miniOpts(list, chosen) {
+    return list.map(function (c) {
+      return '<option value="' + c + '"' + (c === chosen ? " selected" : "") + ">" + c + "</option>";
+    }).join("");
+  }
   function miniTradeHtml() {
     if (Data.state.role === "viewer") return "";
     var fiats = ["AED", "USD", "EUR", "BHD"].filter(function (c) { return Data.railLive(c); });
     if (!fiats.length) return "";
+    if (miniBuy !== "USDT" && fiats.indexOf(miniBuy) < 0) miniBuy = "USDT";
+    var buyList = ["USDT"].concat(fiats);
+    var payList = miniBuy === "USDT" ? fiats : ["USDT"];
+    if (payList.indexOf(miniPay) < 0) miniPay = payList[0];
     return '<div class="db-mini" id="dbMini">' +
       '<div class="dbm-row">' +
         '<span class="dbm-lead">Buy</span>' +
-        '<span class="dbm-cur">' + UI.ccy("USDT", { label: false }) + "<span>USDT</span></span>" +
+        '<select class="select dbm-sel" id="dbmBuy" aria-label="Buy">' + miniOpts(buyList, miniBuy) + "</select>" +
         '<span class="dbm-lead">with</span>' +
-        '<select class="select dbm-sel" id="dbmCur" aria-label="Pay with">' +
-          fiats.map(function (c) { return '<option value="' + c + '">' + c + "</option>"; }).join("") +
-        "</select>" +
+        '<select class="select dbm-sel" id="dbmCur" aria-label="Pay with">' + miniOpts(payList, miniPay) + "</select>" +
       "</div>" +
       '<div class="dbm-row dbm-act">' +
-        '<input class="input dbm-amt" id="dbmAmt" inputmode="decimal" autocomplete="off" placeholder="Amount in USDT">' +
+        '<input class="input dbm-amt" id="dbmAmt" inputmode="decimal" autocomplete="off" placeholder="Amount in ' + miniBuy + '">' +
         '<button class="btn btn-primary" id="dbmGo" type="button">Trade</button>' +
       "</div></div>";
   }
@@ -343,10 +353,29 @@
   function wireMini(el) {
     var amt = el.querySelector("#dbmAmt");
     if (!amt) return;
-    if (UI.amountInput) UI.amountInput(amt, { dp: 0 });
+    // grouped thousands as you type; decimals only when the bought leg is fiat
+    UI.amountInput(amt, { dp: miniBuy === "USDT" ? 0 : 2 });
+    var buy = el.querySelector("#dbmBuy"), pay = el.querySelector("#dbmCur");
+    // swapping the bought leg changes which currencies can pay for it and the
+    // decimals on the amount, so the object is rebuilt and the typed value kept
+    function repaintMini() {
+      var keep = amt.value;
+      var host = el.querySelector("#dbMini");
+      if (!host) return;
+      host.outerHTML = miniTradeHtml();
+      var fresh = el.querySelector("#dbmAmt");
+      if (fresh) fresh.value = keep;
+      wireMini(el);
+    }
+    buy.addEventListener("change", function () {
+      miniBuy = buy.value;
+      miniPay = miniBuy === "USDT" ? miniPay : "USDT";
+      repaintMini();
+    });
+    pay.addEventListener("change", function () { miniPay = pay.value; });
     function go() {
       var t = App.screen("trade");
-      if (t && t.setDraft) t.setDraft(el.querySelector("#dbmCur").value, amt.value);
+      if (t && t.setDraft) t.setDraft(miniBuy, miniPay, amt.value);
       App.go("trade");
     }
     el.querySelector("#dbmGo").addEventListener("click", go);
@@ -404,6 +433,7 @@
     el.insertAdjacentHTML("beforeend", h);
     wireRegion(el);
     wireDnd(el);
+    wireMini(el);
 
     // the paint signatures start here, so the first patch only touches what
     // a confirmed event actually changed
@@ -443,7 +473,6 @@
 
     paint("dbStrip", stripHtml(), "strip");
     wireDnd(document.getElementById("dbStrip"));
-    wireMini(el);
     requestAnimationFrame(function () { wireDnd(document.getElementById("dbStrip")); });
     paint("dbActivity", activityHtml(), "act");
     return true;

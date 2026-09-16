@@ -806,10 +806,11 @@
     },
     // the dashboard's mini trade hands over a pair and a typed amount so the
     // client lands on Trade with their intent intact rather than an empty form
-    setDraft: function (fiatCur, amt) {
+    setDraft: function (buyCur, payCur, amt) {
       if (!Q) initQ();
       if (Q.state !== "idle") return;
-      if (Data.railLive(fiatCur)) { Q.buyCur = "USDT"; Q.sellCur = fiatCur; }
+      var fiat = buyCur === "USDT" ? payCur : buyCur;
+      if (Data.railLive(fiat)) { Q.buyCur = buyCur; Q.sellCur = payCur; }
       Q.entry = "buy";
       Q.amt = amt || "";
     },
