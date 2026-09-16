@@ -41,6 +41,7 @@
   var lockRaf = null;       // the lock's animation frame
   var Q = null;             // screen-local state, survives re-renders
   var EXEC_MS = 900;        // the redemption window the fill drains across
+  var fundIv = null;        // the funding countdown's interval
 
   var FIATS = [
     { cur: "AED", pair: "USDT/AED" },
@@ -144,6 +145,23 @@
 
   // ————— quote actions —————
 
+  // over-limit as a live fact under the input, not a screen you land on after
+  // tapping (Hamis, 15 Sep). Returns the AED notional of what is typed, or 0.
+  function typedNotional() {
+    var raw = parseAmt(Q.amt);
+    if (!raw) return 0;
+    var usdt = entryCur() === "USDT" ? raw : raw / Data.refRate(pairId());
+    return Data.notionalAED(pairId(), usdt);
+  }
+  function overLimit() { return typedNotional() > Data.LIMIT_AED; }
+
+  function limitNoteHtml() {
+    if (!overLimit()) return "";
+    return '<p class="tx-limit-note" id="txLimitNote">Above your ' +
+      UI.money("AED", Data.LIMIT_AED, { dp: 0 }) + " limit for a single trade. " +
+      "Contact your relationship manager to trade more than this.</p>";
+  }
+
   function getQuote() {
     var raw = parseAmt(Q.amt);
     if (!raw) { UI.toast("Enter an amount first.", "blocked"); return; }
@@ -151,7 +169,7 @@
     var typedUSDT = entryCur() === "USDT";
     var provisional = typedUSDT ? raw : raw / Data.refRate(pairId());
     var notional = Data.notionalAED(pairId(), provisional);
-    if (notional > Data.LIMIT_AED) { Q.amtNum = provisional; Q.notional = notional; Q.state = "overlimit"; renderPanel(); return; }
+    if (notional > Data.LIMIT_AED) return;
     var q = Data.makeQuote(pairId(), side(), provisional);
     Q.ref = q.ref; Q.rate = q.rate; Q.expiresAt = q.expiresAt;
     if (typedUSDT) {
@@ -220,16 +238,24 @@
     return "Up to " + UI.fmtNum(maxLeg, 0);
   }
 
+  // both legs wear the same control (Hamis, 15 Sep): the USDT side is a select
+  // with one option rather than bare text, so buy and sell look like one object.
+  // Flags come from the currency's country; USDT has none and keeps its swatch.
+  var CUR_ISO = { AED: "AE", USD: "US", EUR: "EU", BHD: "BH" };
+  function curFlag(cur) {
+    var iso = CUR_ISO[cur];
+    return iso && Data.QUAL && Data.QUAL.flagOf ? Data.QUAL.flagOf(iso) + "  " : "";
+  }
   function selHtml(leg) {
     var cur = leg === "buy" ? Q.buyCur : Q.sellCur;
     if (cur === "USDT") {
-      return '<span class="tx-cur">' + ccy("USDT") + "</span>";
+      return '<span class="tx-cur-fixed">' + ccy("USDT", { label: false }) + "<span>USDT</span></span>";
     }
     var lock = Q.state !== "idle" ? " disabled" : "";
     return '<select class="select tx-sel" id="txFiatSel" aria-label="Currency"' + lock + ">" +
       orderedFiats().map(function (f) {
         return '<option value="' + f.cur + '"' + (f.cur === cur ? " selected" : "") +
-          (fiatLive(f) ? "" : " disabled") + ">" + f.cur + (fiatLive(f) ? "" : " · soon") + "</option>";
+          (fiatLive(f) ? "" : " disabled") + ">" + curFlag(f.cur) + f.cur + (fiatLive(f) ? "" : " · soon") + "</option>";
       }).join("") + "</select>";
   }
 
@@ -292,13 +318,17 @@
       '<div class="tq-lock-secs" id="tqLockSecs" aria-live="polite" aria-atomic="true">' + UI.esc(secsText) + "</div></div>";
   }
 
+  // says the two numbers the client needs: what leaves the balance now, and
+  // what they still have to put in. Never the word "short" on its own.
   function coverage() {
     var payCur = side() === "buy" ? fiat() : "USDT";
     var payAmt = side() === "buy" ? Q.fiatFirm : Q.amtNum;
-    var short = Math.max(0, payAmt - (Data.state.bal[payCur] || 0));
-    return short <= 0
-      ? "Your " + payCur + " balance covers this. It funds and books the moment you execute."
-      : UI.money(payCur, short) + " short. Executing still places it and holds this rate while you fund it.";
+    var have = Data.state.bal[payCur] || 0;
+    var short = Math.max(0, payAmt - have);
+    var dp = payCur === "USDT" ? 0 : 2;
+    if (short <= 0) return "Uses " + UI.money(payCur, payAmt, { dp: dp }) + " from your balance.";
+    return "Uses " + UI.money(payCur, have, { dp: dp }) + " from your balance. You add " +
+      UI.money(payCur, short, { dp: dp }) + " to fund the rest.";
   }
 
   // ————— panel states —————
@@ -326,8 +356,9 @@
       // "indicative" and the firm number exists only once a quote is locked
       return (S.stale ? '<div class="note note-warning tq-note" style="margin-bottom:16px">Rate feed interrupted, so nothing quotes on a stale price. Try again in a moment.</div>' : "") +
         objectHtml("idle") +
-        '<button class="btn btn-primary btn-lg tx-cta" id="txGo" type="button">Get quote</button>' +
-        '<p class="freshline mt-12" style="text-align:center">Firm for your exact size, locked for ' + Data.LOCK_SECS + " seconds.</p>";
+        '<div id="txLimitSlot">' + limitNoteHtml() + "</div>" +
+        '<button class="btn btn-primary btn-lg tx-cta" id="txGo" type="button"' + (overLimit() ? " disabled" : "") + ">Get quote</button>" +
+        '<p class="freshline mt-12" style="text-align:center">Your rate will be locked for ' + Data.LOCK_SECS + " seconds.</p>";
     }
 
     if (Q.state === "quoted") {
@@ -402,6 +433,28 @@
     ];
   }
 
+  function fmtClock(secs) {
+    var h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60), x = secs % 60;
+    function pad(n) { return (n < 10 ? "0" : "") + n; }
+    return pad(h) + ":" + pad(m) + ":" + pad(x);
+  }
+
+  function stopFundClock() { if (fundIv) { clearInterval(fundIv); fundIv = null; } }
+
+  // the countdown ticks on its own interval so a re-render never restarts it
+  // mid-second, and it stops the moment the order leaves the awaiting state.
+  function startFundClock(t) {
+    stopFundClock();
+    fundIv = setInterval(function () {
+      var el = document.getElementById("tqClock");
+      if (!el || !Q || Q.state !== "placed" || !Q.booked || Q.booked.state !== "awaiting") { stopFundClock(); return; }
+      var left = Data.fundingSecsLeft(t);
+      el.textContent = fmtClock(left);
+      document.getElementById("tqCount").classList.toggle("low", left <= 300);
+      if (left <= 0) stopFundClock();
+    }, 1000);
+  }
+
   function orderHero(cur, amt, line) {
     return '<div class="tx-order-need">' +
       '<div class="bal-value" id="tqNeed">' + UI.moneyHero(cur, amt, { dp: cur === "USDT" ? 0 : 2, symbol: true }) + "</div>" +
@@ -415,8 +468,13 @@
     var ref = '<p class="tx-order-ref">' + UI.esc(t.id) + " · 1 USDT = " + rate4(t.rate) + " " + UI.esc(Data.fiatOf(t.pair)) + "</p>";
 
     if (t.state === "awaiting") {
+      var dp = t.payCur === "USDT" ? 0 : 2;
       return headline("Fund this order.") +
-        orderHero(t.payCur, t.needed, "Your rate holds until " + UI.esc(UI.fmtTs(Data.fundingDeadline(t))) + ".") +
+        orderHero(t.payCur, t.needed, "") +
+        '<p class="tx-fund-meta">Still needed. Your order is ' + UI.money(t.payCur, t.payAmt, { dp: dp }) +
+          ", of which " + UI.money(t.payCur, t.fromBalance || 0, { dp: dp }) + " comes from your balance.</p>" +
+        '<div class="tx-count" id="tqCount"><span class="tc-clock" id="tqClock">' + fmtClock(Data.fundingSecsLeft(t)) +
+          '</span><span class="tc-lbl">left to fund at this rate</span></div>' +
         spine +
         '<button class="btn btn-primary btn-lg tx-cta" id="tqFundSheet" type="button">' +
           (t.payCur === "USDT" ? "Send USDT" : "Fund by bank transfer") + "</button>" +
@@ -462,7 +520,7 @@
         '<div class="copy-row"><span class="cr-label">Bank</span><span class="cr-value">Zand Bank · Dubai, UAE</span></div>' +
         UI.copyRow("Reference", t.id, { mono: true, copy: t.id });
     }
-    body += '<p class="tx-order-line mt-16">Your rate holds until ' + UI.esc(UI.fmtTs(Data.fundingDeadline(t))) + ".</p>";
+    body += '<p class="tx-order-line mt-16">Your rate holds for ' + fmtClock(Data.fundingSecsLeft(t)) + " from now.</p>";
     body += '<div class="demo-strip mt-16"><span class="freshline">Demo · the bank or the chain confirms it.</span>' +
       '<button class="db-btn" id="tqSheetFund" type="button">Webhook: funding arrives</button></div>';
 
@@ -604,6 +662,11 @@
             inp.classList.remove("est");
             var other = byId("txAmt-" + (s === "buy" ? "sell" : "buy"));
             if (other) { other.value = estFor(s === "buy" ? "sell" : "buy"); other.classList.add("est"); }
+            var slot = byId("txLimitSlot");
+            if (slot) slot.innerHTML = limitNoteHtml();
+            var go = byId("txGo");
+            if (go) go.disabled = overLimit();
+            inp.classList.toggle("over", overLimit());
           }
         });
         inp.addEventListener("keydown", function (e) { if (e.key === "Enter") getQuote(); });
@@ -634,6 +697,8 @@
     on("tqDone", function () { Q.state = "idle"; renderPanel(); });
     on("tqRepeatLast", function () { repeat(Q.booked); });
     on("tqFundSheet", function () { if (Q.booked) openFundSheet(Q.booked); });
+    stopFundClock();
+    if (Q.state === "placed" && Q.booked && Q.booked.state === "awaiting") startFundClock(Q.booked);
     on("tqGtrGo", function () {
       Q.gtrSent = true;
       renderPanel();
@@ -729,7 +794,7 @@
 
   App.registerScreen("trade", {
     title: "Trade",
-    subtitle: "A firm, executable rate for your exact size, locked while you commit",
+    subtitle: "Buy and sell at a price we hold while you decide",
     zone: "app",
     prefill: function (t) { repeat(t); },
     // dashboard rates row → Trade lands on the pair the client tapped,
@@ -738,6 +803,15 @@
       if (!Q) initQ();
       var f = Data.fiatOf(pair);
       if (Q.state === "idle" && Data.railLive(f)) { Q.buyCur = "USDT"; Q.sellCur = f; }
+    },
+    // the dashboard's mini trade hands over a pair and a typed amount so the
+    // client lands on Trade with their intent intact rather than an empty form
+    setDraft: function (fiatCur, amt) {
+      if (!Q) initQ();
+      if (Q.state !== "idle") return;
+      if (Data.railLive(fiatCur)) { Q.buyCur = "USDT"; Q.sellCur = fiatCur; }
+      Q.entry = "buy";
+      Q.amt = amt || "";
     },
     render: render,
     // protect a running lock: nothing here rebuilds the panel from a webhook.

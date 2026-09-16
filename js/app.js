@@ -105,12 +105,13 @@
   }
 
   // ————— theme —————
-  App.setTheme = function (v) {
-    Data.state.theme = v;
-    if (v === "auto") document.documentElement.removeAttribute("data-theme");
-    else document.documentElement.setAttribute("data-theme", v);
-    var sel = document.getElementById("dbTheme");
-    if (sel) sel.value = v;
+  // Dark mode is out of scope (Hamis, 2026-09-15). Light is pinned on the root,
+  // which the tokens honour through :root:not([data-theme="light"]) on the dark
+  // media query. The dark token set stays in tokens.css, unreachable, so
+  // re-enabling later is one line here and a control somewhere.
+  App.setTheme = function () {
+    Data.state.theme = "light";
+    document.documentElement.setAttribute("data-theme", "light");
   };
 
   // ————— shell rendering —————
@@ -181,7 +182,7 @@
           '<header class="topbar">' +
             "<span></span>" +
             '<div class="topbar-actions">' +
-              '<button class="icon-btn" id="themeBtn" type="button" aria-label="Theme">' + icon("moon", 16) + "</button>" +
+
             "</div>" +
           "</header>" +
           '<div class="content"><div class="content-inner" id="screenHost"></div></div>' +
@@ -191,12 +192,6 @@
 
     root.querySelectorAll("[data-nav]").forEach(function (b) {
       b.addEventListener("click", function () { App.go(b.getAttribute("data-nav")); });
-    });
-    document.getElementById("themeBtn").addEventListener("click", function () {
-      var cur = document.documentElement.getAttribute("data-theme");
-      var dark = cur ? cur === "dark"
-        : window.matchMedia("(prefers-color-scheme: dark)").matches;
-      App.setTheme(dark ? "light" : "dark");
     });
     refreshRoleNote();
   }
@@ -273,21 +268,26 @@
     var el = document.createElement("section");
     el.className = "screen";
     if (def.zone === "app") {
-      var head = document.createElement("div");
-      head.className = "page-head";
       // a pushed screen carries its parent as a ghost back, top-left, above
       // the title (decision 42's law, applied inside the app zone)
       var back = typeof def.back === "function" ? def.back() : def.back;
+      var actionsHtml = def.actions ? def.actions() : "";
+      // a screen with no title, no subtitle, no action and no back gets no head
+      // at all rather than an empty one holding vertical space (Hamis, 15 Sep)
+      if (val(def.title) || val(def.subtitle) || actionsHtml || back) {
+      var head = document.createElement("div");
+      head.className = "page-head";
       head.innerHTML =
         (back ? '<button class="btn btn-ghost page-back" data-nav="' + UI.esc(back.id) + '" type="button">' +
           icon("chevronLeft", 14) + UI.esc(back.label) + "</button>" : "") +
         "<div><h1>" + UI.esc(val(def.title)) + "</h1>" +
         (val(def.subtitle) ? '<p class="page-sub">' + UI.esc(val(def.subtitle)) + "</p>" : "") + "</div>" +
-        (def.actions ? '<div class="page-actions">' + def.actions() + "</div>" : "");
+        (actionsHtml ? '<div class="page-actions">' + actionsHtml + "</div>" : "");
       el.appendChild(head);
       head.querySelectorAll("[data-nav]").forEach(function (b) {
         b.addEventListener("click", function () { App.go(b.getAttribute("data-nav")); });
       });
+      }
     }
     host.appendChild(el);
     def.render(el);
@@ -358,8 +358,6 @@
         '<button class="db-btn" data-jump="onboarding" type="button">Landing</button>' +
         '<button class="db-btn" data-jump="hub" type="button">Status hub</button>' +
         '<button class="db-btn" data-jump="dashboard" type="button">App</button>' +
-        '<button class="db-btn" data-jump="ib-onboard" type="button">IB onboarding</button>' +
-        '<button class="db-btn" data-jump="ib-overview" type="button">IB portal</button>' +
         '<button class="db-btn" data-jump="map" type="button">Connection map</button>' +
       "</div>" +
       '<span class="db-sep"></span>' +
@@ -369,8 +367,6 @@
         '<select id="dbRails"><option value="live" selected>End state (all live)</option><option value="today">Today (AED only)</option></select></div>' +
       '<div class="db-group"><span class="db-label">Withdrawal copy</span>' +
         '<select id="dbWindow"><option value="30min">within 30 minutes</option><option value="hours">same business hours</option></select></div>' +
-      '<div class="db-group"><span class="db-label">Theme</span>' +
-        '<select id="dbTheme"><option value="auto">Auto</option><option value="light">Light</option><option value="dark">Dark</option></select></div>' +
       '<span class="db-sep"></span>' +
       '<div class="db-group"><span class="db-label">Dashboard</span>' +
         '<button class="db-btn" id="dbStale" type="button">Stale feed</button>' +
@@ -409,7 +405,6 @@
       Data.setWindowCopy(e.target.value);
       UI.toast("Withdrawal window copy switched. A review with the desk's number is a toggle, not a rebuild.");
     });
-    bar.querySelector("#dbTheme").addEventListener("change", function (e) { App.setTheme(e.target.value); });
     bar.querySelector("#dbStale").addEventListener("click", function () {
       Data.setStale(!Data.state.stale);
       bar.querySelector("#dbStale").classList.toggle("on", Data.state.stale);
@@ -425,6 +420,7 @@
   //  mirroring assets/brand/fasset-lockup.svg — file:// safe, currentColor-themed)
 
   document.addEventListener("DOMContentLoaded", function () {
+    App.setTheme();
     root = document.getElementById("app");
     renderDemoBar();
 

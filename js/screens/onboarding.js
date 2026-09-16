@@ -14,21 +14,21 @@
    account: Data.createAccount mints the client id and the attribution
    channel) → verify (emailed link; email is the auth factor, so it is
    verified) → qualification (entity · expected monthly volume · minimum
-   balance of USD 50,000 with proof · where funds come from) → one of
+   balance of USD 50,000 with proof · nationality and residence · industry
+   or source of wealth) → one of
    three outcomes: qualified (KYC opens, the deal exists), parked (hub,
    triage decides), not eligible (told, sent away). MFA enrollment
    (QR stand-in, confirm code, recovery codes shown once) moved OUT of
    signup: it runs after approval, on first entry to Prime
    (PrimeOnboarding.enrollMfa, called by the hub's Open Prime).
-   Separately: login → MFA challenge with the recovery-code path →
-   dashboard.
+   Separately: login → MFA challenge → dashboard.
 
    States per element: loading (n/a — no data fetch in the public
    zone; the step itself is the first paint) · empty (each step opens
    with nothing filled; no field is ever prefilled except the
    returning-user login, which is deliberate repeat-last) ·
    error/failed (duplicate email, rate limit, wrong authenticator
-   code, wrong recovery code, password rules unmet) · stale/degraded
+   code, password rules unmet) · stale/degraded
    (verify hold with a live resend cooldown; unverified accounts open
    nothing) · permission-denied (the whole zone is pre-auth; the
    duplicate-email path is the "you can't create this" case, and it
@@ -36,7 +36,7 @@
 
    Zone is "auth": no app shell. Sections are direct children of
    .screen so the 40ms stagger applies.
-   Data API: Data.setJourney · Data.state.user · UI.recoveryCodes.
+   Data API: Data.setJourney · Data.state.user.
 
    2026-09-04 (Hamis taste pass): the landing is a front door, not a
    pitch. Every step lost its subtitle unless the subtitle was a fact;
@@ -71,7 +71,7 @@
     pending: null,                 // a step to open on arrival from another zone (MFA enrollment)
     afterMfa: "dashboard",
     name: "", email: "", pass: "", ref: "", refLocked: false,
-    entity: "institution", vol: "", balance: "", held: "", jur: "",
+    entity: "institution", vol: "", balance: "", held: "", nat: "", res: "", industry: "",
     proofDone: false, proofFile: "",
     emailErr: "", emailDup: false, rateErr: false, codeErr: false, recOpen: false, ack: false,
     armRate: false, armPark: false,
@@ -507,31 +507,13 @@
         el.querySelector("#obCodeErr").classList.remove("hide");
         return;
       }
-      L.codeErr = false; L.ack = false;
+      L.codeErr = false;
       UI.toast("Authenticator confirmed.", "done");
-      go("codes");
+      Data.setMfaEnrolled(true);
+      App.go(L.afterMfa || "dashboard");
     }
     el.querySelector("#obConfirm").addEventListener("click", confirm);
     code.addEventListener("keydown", function (e) { if (e.key === "Enter") confirm(); });
-  }
-
-  function stepCodes(el) {
-    el.insertAdjacentHTML("beforeend", sheet(
-      backRow(null) +
-      head("Save your recovery codes.", "Shown once.") +
-      '<div class="ob-body">' +
-      '<div class="ob-codes">' + UI.recoveryCodes.map(function (c) { return "<code>" + UI.esc(c) + "</code>"; }).join("") + "</div>" +
-      '<label class="ob-ack"><input type="checkbox" id="obAck"' + (L.ack ? " checked" : "") +
-      "><span>I’ve saved these.</span></label>" +
-      "</div>" +
-      cta("Continue", "obCodesDone", { disabled: !L.ack })));
-
-    var ack = el.querySelector("#obAck"), btn = el.querySelector("#obCodesDone");
-    ack.addEventListener("change", function () { L.ack = ack.checked; btn.disabled = !L.ack; });
-    btn.addEventListener("click", function () {
-      Data.setMfaEnrolled(true);
-      App.go(L.afterMfa || "dashboard");
-    });
   }
 
   // ————— qualification: four easy-select questions, then an outcome —————
@@ -610,7 +592,7 @@
     });
     wireProof(el, held);
     el.querySelector("#obProofNext").addEventListener("click", function () {
-      if (L.proofDone) go("qual-jurisdiction");
+      if (L.proofDone) go("qual-identity");
     });
   }
 
@@ -649,41 +631,91 @@
     });
   }
 
-  function stepQualJurisdiction(el) {
+  // ————— nationality and residence: the sanctions screen —————
+  // Two answers, one decision: who you are and where you live. Kept on one
+  // screen because neither means anything without the other.
+
+  function countrySelect(id, label, chosen) {
+    var Q = QUAL();
+    return '<div class="field"><label for="' + id + '">' + UI.esc(label) + "</label>" +
+      '<select id="' + id + '" class="select">' +
+      '<option value=""' + (chosen ? "" : " selected") + ">Select a country</option>" +
+      Q.countries.map(function (c) {
+        return '<option value="' + c.iso + '"' + (c.iso === chosen ? " selected" : "") + ">" +
+          Q.flagOf(c.iso) + "  " + UI.esc(c.name) + "</option>";
+      }).join("") + "</select></div>";
+  }
+
+  function stepQualIdentity(el) {
+    var ready = !!(L.nat && L.res);
     el.insertAdjacentHTML("beforeend", sheet(
       backRow("qual-proof") +
       stepsLine(2) +
-      head("Where will your funds be sent from?") +
-      '<div class="ob-body">' + choices(QUAL().jurisdictions.map(function (v) {
-        return { v: v, label: v, sel: L.jur === v };
+      head("Where are you from, and where are you based?") +
+      '<div class="ob-body">' +
+      countrySelect("obNat", "Nationality", L.nat) +
+      countrySelect("obRes", "Country of residence", L.res) +
+      "</div>" +
+      cta("Continue", "obIdNext", { disabled: !ready })));
+
+    el.insertAdjacentHTML("beforeend", demo("",
+      "Demo \u00b7 screened against a placeholder sanctions list. Compliance owns the real one."));
+
+    var nat = el.querySelector("#obNat"), res = el.querySelector("#obRes"), btn = el.querySelector("#obIdNext");
+    function sync() {
+      L.nat = nat.value; L.res = res.value;
+      btn.disabled = !(L.nat && L.res);
+    }
+    nat.addEventListener("change", sync);
+    res.addEventListener("change", sync);
+    btn.addEventListener("click", function () { if (L.nat && L.res) go("qual-industry"); });
+  }
+
+  // ————— industry or source of wealth: the banned-category filter —————
+
+  function stepQualIndustry(el) {
+    var Q = QUAL();
+    var isCo = L.entity === "institution";
+    var set = isCo ? Q.industries : Q.sources;
+    el.insertAdjacentHTML("beforeend", sheet(
+      backRow("qual-identity") +
+      stepsLine(2) +
+      head(isCo ? "What does the business do?" : "Where does your wealth come from?") +
+      '<div class="ob-body">' + choices(set.map(function (o) {
+        return { v: o.v, label: o.v, sel: L.industry === o.v };
       })) + "</div>"));
 
     el.insertAdjacentHTML("beforeend", demo(
       '<label class="ob-ack ob-ack-inline"><input type="checkbox" id="obPark"' + (L.armPark ? " checked" : "") +
       "><span>Triage parks this application before onboarding opens</span></label>",
-      "Demo · a triage decision in Optimus. A country we don’t list parks on its own."));
+      "Demo \u00b7 a triage decision in Optimus. Some answers park or refuse on their own."));
 
     el.querySelector("#obPark").addEventListener("change", function (e) { L.armPark = e.target.checked; });
 
     onChoice(el, function (v) {
-      L.jur = v;
-      var outcome = Data.qualify({ entity: L.entity, vol: L.vol, balance: L.balance, held: L.held, jur: L.jur }, L.armPark);
+      L.industry = v;
+      var outcome = Data.qualify({ entity: L.entity, vol: L.vol, balance: L.balance, held: L.held,
+        nat: L.nat, res: L.res, industry: L.industry }, L.armPark);
       if (outcome === "ineligible") { go("ineligible"); return; }
       if (outcome === "parked") { App.go("hub"); return; }
-      // qualified: the deal exists at Qualified, and KYC opens now
       App.go("kyc");
     });
   }
 
   // told once, plainly, with the one fact that matters and a way out
   function stepIneligible(el) {
+    var why = (Data.state.journey.qual && Data.state.journey.qual.reason) || "balance";
+    var sub = why === "balance"
+      ? "Accounts start at $" + Number(QUAL().MIN_BALANCE_USD).toLocaleString("en-US") + " held in cash or crypto."
+      : why === "industry"
+      ? "We can\u2019t open accounts for this line of business."
+      : "We can\u2019t open accounts in your jurisdiction.";
     el.insertAdjacentHTML("beforeend", sheet(
       backRow(null) +
-      head("Prime isn’t available to you yet.",
-        "Accounts start at $" + Number(QUAL().MIN_BALANCE_USD).toLocaleString("en-US") + " held in cash or crypto.") +
+      head("Prime isn\u2019t available to you yet.", sub) +
       '<div class="ob-cta-row"><button class="btn btn-primary btn-lg" id="obLeave" type="button">Done</button></div>'));
     el.querySelector("#obLeave").addEventListener("click", function () {
-      L.balance = ""; L.proofDone = false; L.proofFile = "";
+      L.balance = ""; L.proofDone = false; L.proofFile = ""; L.nat = ""; L.res = ""; L.industry = "";
       go("landing");
     });
   }
@@ -705,33 +737,25 @@
     el.querySelector("#liPass").addEventListener("keydown", function (e) { if (e.key === "Enter") go("challenge"); });
   }
 
+  // Recovery codes are out of scope (Hamis, 14 Sep), so the challenge is the
+  // authenticator code alone and there is no fallback path here.
   function stepChallenge(el) {
     el.insertAdjacentHTML("beforeend", sheet(
       backRow("login") +
       head("Enter the code from your authenticator.") +
       '<div class="ob-body">' +
-      '<div class="field"><input id="mcCode" class="input input-code" inputmode="numeric" maxlength="6" placeholder="······" autocomplete="off">' +
-      '<div class="hint err' + (L.codeErr ? "" : " hide") + '" id="mcErr">That code isn’t right. Check the app and try again.</div></div>' +
-      '<div class="field' + (L.recOpen ? "" : " hide") + '" id="mcRecWrap"><label for="mcRec">Recovery code</label>' +
-      '<input id="mcRec" class="input mono" placeholder="XXXX-XXXX" autocomplete="off"></div>' +
+      '<div class="field"><input id="mcCode" class="input input-code" inputmode="numeric" maxlength="6" placeholder="\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7" autocomplete="off">' +
+      '<div class="hint err' + (L.codeErr ? "" : " hide") + '" id="mcErr">That code isn\u2019t right. Check the app and try again.</div></div>' +
       "</div>" +
-      cta("Verify", "mcGo") +
-      '<div class="mt-12"><button class="link" id="mcRecLink" type="button">Use a recovery code instead</button></div>'));
+      cta("Verify", "mcGo")));
 
-    el.insertAdjacentHTML("beforeend", demo("",
-      "Demo · code 123456, or a seeded recovery code like 9F3K-22LQ."));
+    el.insertAdjacentHTML("beforeend", demo("", "Demo \u00b7 code 123456."));
 
-    var code = el.querySelector("#mcCode"), rec = el.querySelector("#mcRec");
+    var code = el.querySelector("#mcCode");
     code.focus();
     code.addEventListener("input", function () { el.querySelector("#mcErr").classList.add("hide"); });
-    el.querySelector("#mcRecLink").addEventListener("click", function () {
-      L.recOpen = true;
-      el.querySelector("#mcRecWrap").classList.remove("hide");
-      rec.focus();
-    });
     function verify() {
-      var ok = code.value === "123456" || UI.recoveryCodes.indexOf((rec.value || "").trim().toUpperCase()) >= 0;
-      if (!ok) {
+      if (code.value !== "123456") {
         L.codeErr = true;
         el.querySelector("#mcErr").classList.remove("hide");
         return;
@@ -741,7 +765,6 @@
     }
     el.querySelector("#mcGo").addEventListener("click", verify);
     code.addEventListener("keydown", function (e) { if (e.key === "Enter") verify(); });
-    rec.addEventListener("keydown", function (e) { if (e.key === "Enter") verify(); });
   }
 
   var STEPS = {
@@ -750,12 +773,12 @@
     password: stepPassword,
     verify: stepVerify,
     mfa: stepMfaEnroll,
-    codes: stepCodes,
     "qual-entity": stepQualEntity,
     "qual-volume": stepQualVolume,
     "qual-balance": stepQualBalance,
     "qual-proof": stepQualProof,
-    "qual-jurisdiction": stepQualJurisdiction,
+    "qual-identity": stepQualIdentity,
+    "qual-industry": stepQualIndustry,
     ineligible: stepIneligible,
     login: stepLogin,
     challenge: stepChallenge
@@ -779,7 +802,7 @@
     // wins over the restart
     if (L.pending) { L.step = L.pending; L.pending = null; }
     if (right) {
-      var who = ["email", "password", "verify", "qual-entity", "qual-volume", "qual-balance", "qual-proof", "qual-jurisdiction", "ineligible"].indexOf(L.step) >= 0
+      var who = ["email", "password", "verify", "qual-entity", "qual-volume", "qual-balance", "qual-proof", "qual-identity", "qual-industry", "ineligible"].indexOf(L.step) >= 0
         ? L.email : ["mfa", "codes"].indexOf(L.step) >= 0 ? Data.state.user.email : "";
       right.textContent = who || "";
     }

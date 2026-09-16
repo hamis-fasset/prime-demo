@@ -1452,3 +1452,26 @@ body:not(.demo-on) .section:has(> .demo-strip) { display: none; }
   /* journeys breathe on a small sheet */
   .bare-body { padding-left: 16px; padding-right: 16px; }
 }
+
+/* ————— dashboard mini trade (Hamis, 2026-09-15) —————
+   The dashboard's one action, inline under the balance. It carries intent to
+   the Trade screen; it never prices or locks anything itself. */
+.db-mini {
+  margin-top: 22px; padding: 16px 18px;
+  background: var(--surface-2); border-radius: 16px;
+  display: flex; flex-direction: column; gap: 12px; max-width: 520px;
+}
+.db-mini .dbm-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.db-mini .dbm-lead { font-size: var(--text-13); color: var(--text-subtle); }
+.db-mini .dbm-cur {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: var(--text-13); font-weight: var(--w-medium); color: var(--text-strong);
+}
+.db-mini .dbm-sel { width: auto; min-width: 88px; }
+.db-mini .dbm-act { gap: 10px; }
+.db-mini .dbm-amt { flex: 1; min-width: 0; }
+.db-mini .dbm-act .btn { flex: none; }
+@media (max-width: 440px) {
+  .db-mini .dbm-act { flex-direction: column; align-items: stretch; }
+  .db-mini .dbm-act .btn { width: 100%; }
+}

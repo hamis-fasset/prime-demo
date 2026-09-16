@@ -2,14 +2,14 @@
    Fasset Prime — Settings (J6 config + profile). Built in wave 2.
    Ported from prime-v2.standalone.html per ARCHITECTURE.md:
    · profile: entity details read-only, contact-us path to change
-   · security: authenticator status, rotate, view recovery codes,
+   · security: authenticator status, rotate,
      change password — every one behind UI.stepUp; active sessions
      with revoke (step-up)
    · notification preferences (personal, all roles)
    · agreements
    All quiet: open typography and def-rows, no boxed numbers, no lines.
    Recovery codes render in a drawer, mono, once-only language kept.
-   Data API: Data.state.user, UI.stepUp, UI.recoveryCodes.
+   Data API: Data.state.user, UI.stepUp.
    States: loading (one skeleton pass) · stale session feed note ·
    step-up failure handled by UI.stepUp · entity change = quiet
    permission story (read-only + contact path) · sessions empty.
@@ -87,20 +87,6 @@
     UI.toast("Support thread opened (simulated).");
   }
 
-  function openCodes(title) {
-    var h = UI.drawer(title,
-      '<div class="codes-grid">' + UI.recoveryCodes.map(function (c) {
-        return "<code>" + UI.esc(c) + "</code>";
-      }).join("") + "</div>" +
-      '<p class="hint">Each code works once.</p>',
-      {
-        width: 440,
-        foot: '<button class="btn btn-secondary" type="button" data-copy="' + UI.esc(UI.recoveryCodes.join(" ")) + '">Copy all</button>' +
-              '<button class="btn btn-primary" id="cdDone" type="button">Done</button>'
-      });
-    h.el.querySelector("#cdDone").addEventListener("click", h.close);
-  }
-
   // shaped like what lands: a narrow definition column, then the two-column
   // security block
   function skeletonHtml() {
@@ -157,7 +143,6 @@
           UI.statusDot("positive", "Enrolled") + ' <span class="faint small">since 18 Jun 2026</span></span></div>' +
         '<div class="flex mt-12 st-actions">' +
           '<button class="btn btn-secondary" id="stRotate" type="button">Rotate authenticator</button>' +
-          '<button class="btn btn-secondary" id="stCodes" type="button">View recovery codes</button>' +
           '<button class="btn btn-secondary" id="stPass" type="button">Change password</button>' +
         "</div>" +
       "</div>" +
@@ -194,14 +179,7 @@
 
     el.querySelector("#stRotate").addEventListener("click", function () {
       UI.stepUp("Rotating your authenticator is a security change.", function () {
-        openCodes("New authenticator enrolled · fresh recovery codes");
-        UI.toast("Authenticator rotated. Your old recovery codes no longer work.", "done");
-      });
-    });
-
-    el.querySelector("#stCodes").addEventListener("click", function () {
-      UI.stepUp("Viewing recovery codes is a security change.", function () {
-        openCodes("Recovery codes");
+        UI.toast("Authenticator rotated. Scan the new code in your app.", "done");
       });
     });
 

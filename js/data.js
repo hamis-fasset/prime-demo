@@ -25,6 +25,9 @@
   var SPREAD = 0.0025;        // Tier 2 = reference + 25 bps
   var LIMIT_AED = 7500000;    // per-trade self-serve limit
   var LOCK_SECS = 60;         // client quote lock (one minute; margin covers it — Hamis 2026-09-03)
+  var FUND_SECS = 30 * 60;    // funding window on an uncovered order. Hamis asked for a
+                              // ticking 00:30:00 on 2026-09-15; the v2 brief still says 24h.
+                              // Open decision, flagged: 30 minutes cannot survive a bank transfer.
 
   // display vocabulary: proper names title screens, proper symbols sit in the
   // money where one exists in latin script (the rest read their code)
@@ -86,17 +89,85 @@
   // Volume is collected, not gated. Jurisdiction: a country we don't list goes
   // to triage (parked). PLACEHOLDER: the full answer-to-outcome table is
   // Maks's to write (he offered in the thread); this is the shape it plugs into.
+  // Countries, shared by the qualification gate and the KYC wizard. "Name|ISO2";
+  // the ISO code drives the flag glyph so no emoji are hard-coded.
+  var COUNTRY_SRC = ("Afghanistan|AF,Albania|AL,Algeria|DZ,Argentina|AR,Armenia|AM,Australia|AU,Austria|AT,Azerbaijan|AZ," +
+    "Bahrain|BH,Bangladesh|BD,Belarus|BY,Belgium|BE,Brazil|BR,Bulgaria|BG,Canada|CA,China|CN,Colombia|CO,Croatia|HR," +
+    "Cyprus|CY,Czechia|CZ,Denmark|DK,Egypt|EG,Estonia|EE,Ethiopia|ET,Finland|FI,France|FR,Georgia|GE,Germany|DE," +
+    "Ghana|GH,Greece|GR,Hong Kong SAR|HK,Hungary|HU,India|IN,Indonesia|ID,Iran|IR,Iraq|IQ,Ireland|IE,Israel|IL," +
+    "Italy|IT,Japan|JP,Jordan|JO,Kazakhstan|KZ,Kenya|KE,Kuwait|KW,Kyrgyzstan|KG,Lebanon|LB,Libya|LY,Lithuania|LT," +
+    "Luxembourg|LU,Malaysia|MY,Maldives|MV,Malta|MT,Mauritius|MU,Mexico|MX,Morocco|MA,Myanmar|MM,Nepal|NP," +
+    "Netherlands|NL,New Zealand|NZ,Nigeria|NG,North Korea|KP,Norway|NO,Oman|OM,Pakistan|PK,Philippines|PH,Poland|PL," +
+    "Portugal|PT,Qatar|QA,Romania|RO,Russia|RU,Saudi Arabia|SA,Senegal|SN,Serbia|RS,Seychelles|SC,Singapore|SG," +
+    "Somalia|SO,South Africa|ZA,South Korea|KR,Spain|ES,Sri Lanka|LK,Sudan|SD,Sweden|SE,Switzerland|CH,Syria|SY," +
+    "Taiwan|TW,Tanzania|TZ,Thailand|TH,Tunisia|TN,Turkey|TR,Uganda|UG,Ukraine|UA,United Arab Emirates|AE," +
+    "United Kingdom|GB,United States|US,Uzbekistan|UZ,Venezuela|VE,Vietnam|VN,Yemen|YE,Zimbabwe|ZW").split(",");
+  var COUNTRIES = COUNTRY_SRC.map(function (r) {
+    var b = r.split("|");
+    return { name: b[0], iso: b[1] };
+  }).sort(function (a, b) { return a.name.localeCompare(b.name); });
+
+  function flagOf(iso) {
+    if (!iso || iso.length !== 2) return "";
+    return iso.toUpperCase().replace(/./g, function (c) {
+      return String.fromCodePoint(127397 + c.charCodeAt(0));
+    });
+  }
+
+  // ————— qualification: the front-door gate —————
+  // Criteria agreed in #prime-optimus on 2026-09-14 (Hamis, after Maks and Yazan):
+  // proof of funds, nationality, country of residence, expected trade volume,
+  // and industry or source of funds to filter banned categories.
+  //
+  // PLACEHOLDER, both lists. The sanctioned set below is the uncontested
+  // FATF call-to-action and UN-embargoed core only; the banned-industry set is
+  // gambling and adult entertainment (Maks, 14 Sep) plus arms. Yazan owes us the
+  // real lists and they replace these wholesale. Nothing here is a compliance
+  // position, it is a working mechanism waiting for one.
   var QUAL = {
     MIN_BALANCE_USD: 50000,
     balances: ["Under $50,000", "$50,000 to $250,000", "$250,000 to $1,000,000", "Over $1,000,000"],
     volumes: ["Under $100,000", "$100,000 to $1,000,000", "$1,000,000 to $10,000,000", "Over $10,000,000"],
-    jurisdictions: ["United Arab Emirates", "Saudi Arabia", "Qatar", "Bahrain", "United Kingdom", "Singapore", "Somewhere else"],
     held: [
       { v: "bank", label: "A bank account", proof: "Bank statement", types: "PDF" },
       { v: "exchange", label: "A crypto exchange", proof: "Exchange account statement", types: "PDF, JPG or PNG" },
       { v: "wallet", label: "A self-custody wallet", proof: "Wallet balance screenshot", types: "JPG or PNG" }
+    ],
+    countries: COUNTRIES,
+    flagOf: flagOf,
+    sanctioned: ["IR", "KP", "SY"],
+    review: ["RU", "BY", "MM", "AF", "YE", "LY", "SD", "SO", "VE", "ZW"],
+    // institutions answer industry, individuals answer source of wealth
+    industries: [
+      { v: "Trading and commodities" }, { v: "Manufacturing and industrials" },
+      { v: "Technology and software" }, { v: "Professional services" },
+      { v: "Logistics and shipping" }, { v: "Real estate and construction" },
+      { v: "Licensed financial services", flag: "review" },
+      { v: "Precious metals and stones", flag: "review" },
+      { v: "Gambling and gaming", flag: "banned" },
+      { v: "Adult entertainment", flag: "banned" },
+      { v: "Arms and defence", flag: "banned" },
+      { v: "Something else", flag: "review" }
+    ],
+    sources: [
+      { v: "Business ownership" }, { v: "Employment income" },
+      { v: "Investment returns" }, { v: "Sale of a business or property" },
+      { v: "Inheritance" }, { v: "Digital asset trading" },
+      { v: "Gambling winnings", flag: "banned" },
+      { v: "Something else", flag: "review" }
     ]
   };
+  QUAL.industryFlag = function (entity, value) {
+    var set = entity === "individual" ? QUAL.sources : QUAL.industries;
+    var hit = set.filter(function (x) { return x.v === value; })[0];
+    return hit && hit.flag ? hit.flag : "ok";
+  };
+  QUAL.countryFlagState = function (iso) {
+    if (QUAL.sanctioned.indexOf(iso) >= 0) return "banned";
+    if (QUAL.review.indexOf(iso) >= 0) return "review";
+    return "ok";
+  };
+
   function mintClientId() {
     var al = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789", out = "PRM-";
     for (var i = 0; i < 6; i++) out += al[Math.floor(Math.random() * al.length)];
@@ -111,7 +182,7 @@
     role: "admin",                    // admin | trader | viewer (demo preview)
     persona: "client",                // client | ib — which portal the demo shows
     pairOrder: ["USDT/AED", "USDT/USD", "USDT/EUR", "USDT/BHD"],  // client-pinned order (drag to reorder)
-    totalCur: "AED",                  // total-balance denomination: AED | USDT (client display pref)
+    totalCur: "USDT",                 // total-balance denomination: AED | USDT. USDT is the default (Hamis, 2026-09-15)
     balOrder: ["AED", "USD", "EUR", "BHD", "USDT"],  // the client's balance-card order (drag or Reorder)
     windowCopy: "30min",              // "30min" | "hours" (OQ9 copy toggle)
     stale: false,                     // balance feed interrupted
@@ -263,7 +334,7 @@
 
   var Data = {
     state: S,
-    REF: REF, SPREAD: SPREAD, LIMIT_AED: LIMIT_AED, LOCK_SECS: LOCK_SECS, TEST_AMT: TEST_AMT, QUAL: QUAL,
+    REF: REF, SPREAD: SPREAD, LIMIT_AED: LIMIT_AED, LOCK_SECS: LOCK_SECS, FUND_SECS: FUND_SECS, TEST_AMT: TEST_AMT, QUAL: QUAL,
     VIBANS: VIBANS, ACCOUNT_NAME: ACCOUNT_NAME, USDT_ADDRS: USDT_ADDRS,
     CUR_NAMES: CUR_NAMES,
     curName: function (cur) { return CUR_NAMES[cur] || cur; },
@@ -414,7 +485,8 @@
     receiveLeg: function (t) {
       return t.side === "buy" ? { cur: "USDT", amt: t.assetAmt } : { cur: Data.fiatOf(t.pair), amt: t.fiatAmt };
     },
-    fundingDeadline: function (t) { return new Date(new Date(t.stamps.placed || t.ts).getTime() + 24 * 3600000).toISOString(); },
+    fundingDeadline: function (t) { return new Date(new Date(t.stamps.placed || t.ts).getTime() + FUND_SECS * 1000).toISOString(); },
+    fundingSecsLeft: function (t) { return Math.max(0, Math.round((new Date(Data.fundingDeadline(t)) - Date.now()) / 1000)); },
     settleEta: function (t) { return new Date(new Date(t.stamps.funded || t.ts).getTime() + 30 * 60000).toISOString(); },
     refRate: function (pair) { return REF[pair]; },
     notionalAED: function (pair, amt) { return amt * REF["USDT/AED"]; }, // amt is USDT; AED value is pair-independent
@@ -434,7 +506,7 @@
       var payCur = q.side === "buy" ? fiat : "USDT";
       var payAmt = q.side === "buy" ? q.amtNum * rate : q.amtNum;
       var t = { id: "T-" + (nextIds.trade++), pair: q.pair, side: q.side, assetAmt: q.amtNum, fiatAmt: q.amtNum * rate,
-        rate: rate, ts: nowIso(), byDesk: false, payCur: payCur, payAmt: payAmt, needed: 0,
+        rate: rate, ts: nowIso(), byDesk: false, payCur: payCur, payAmt: payAmt, needed: 0, fromBalance: 0,
         state: "awaiting", stamps: { placed: nowIso(), funded: null, settled: null } };
       if (S.bal[payCur] >= payAmt) {
         S.bal[payCur] -= payAmt;
@@ -443,6 +515,7 @@
           (t.side === "buy" ? "Buy " : "Sell ") + Number(t.assetAmt).toLocaleString("en-US") + " USDT at your locked rate " + rate.toFixed(4) + ". Funds release within 30 minutes.", "dashboard");
       } else {
         t.needed = payAmt - S.bal[payCur];
+        t.fromBalance = S.bal[payCur] || 0;
         Data.notify("Order awaiting funding · " + t.id,
           "Placed at your locked rate " + rate.toFixed(4) + ". " + payCur + " " + Number(t.needed.toFixed(2)).toLocaleString("en-US") + " still needed within 24 hours.", "dashboard");
       }
@@ -571,12 +644,24 @@
     // the qualification gate. Returns "qualified" (deal created at Qualified,
     // KYC opens), "parked" (triage in Optimus decides) or "ineligible" (told
     // so, sent away; sales can still qualify them from Optimus later).
-    qualify: function (q, forcePark) { // { entity, vol, balance, held, jur }
+    // q = { entity, vol, balance, held, nat, res, industry }
+    // Outcome order matters: a banned answer always beats a parked one.
+    qualify: function (q, forcePark) {
+      var natState = QUAL.countryFlagState(q.nat);
+      var resState = QUAL.countryFlagState(q.res);
+      var indState = QUAL.industryFlag(q.entity, q.industry);
       var outcome = "qualified";
-      if (q.balance === QUAL.balances[0]) outcome = "ineligible";
-      else if (forcePark || q.jur === QUAL.jurisdictions[QUAL.jurisdictions.length - 1]) outcome = "parked";
+      var reason = null;
+      if (q.balance === QUAL.balances[0]) { outcome = "ineligible"; reason = "balance"; }
+      else if (natState === "banned" || resState === "banned") { outcome = "ineligible"; reason = "jurisdiction"; }
+      else if (indState === "banned") { outcome = "ineligible"; reason = "industry"; }
+      else if (forcePark || natState === "review" || resState === "review" || indState === "review") {
+        outcome = "parked";
+        reason = indState === "review" ? "industry" : "jurisdiction";
+      }
       S.journey.entity = q.entity;
-      S.journey.qual = { vol: q.vol, balance: q.balance, held: q.held, jur: q.jur, outcome: outcome, ts: nowIso() };
+      S.journey.qual = { vol: q.vol, balance: q.balance, held: q.held, nat: q.nat, res: q.res,
+        industry: q.industry, outcome: outcome, reason: reason, ts: nowIso() };
       S.journey.qualified = outcome === "qualified";
       S.journey.comments = [];
       S.journey.review = outcome === "qualified" ? "in_progress" : outcome === "parked" ? "parked" : "not_started";

@@ -414,3 +414,45 @@
 .tx-order-spine { margin-top: 22px; }
 .tx-order-ref { margin-top: 18px; font-size: var(--text-12); color: var(--text-faint); font-variant-numeric: tabular-nums; }
 .drawer .demo-strip { margin-top: 16px; }
+
+/* ————— 2026-09-15, from Hamis's comments on the prototype —————
+   The over-limit warning is a fact under the object as you type, not a screen
+   you land on after tapping. The funding panel says both numbers, what the
+   balance covered and what is still owed, over a clock that actually ticks. */
+.tx-limit-note {
+  margin: 12px 0 0;
+  font-size: var(--text-13);
+  color: var(--negative-text);
+  line-height: 1.5;
+}
+.tx-amt.over { color: var(--negative-text); }
+
+/* both legs wear the same control: the fixed side mirrors the select's box */
+.tx-cur-fixed {
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 34px; padding: 0 12px; min-width: 92px;
+  border: 1px solid var(--border-input); border-radius: var(--r-control);
+  background: var(--bg);
+  font-size: var(--text-13); font-weight: var(--w-medium); color: var(--text-strong);
+}
+
+.tx-fund-split {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+  margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border);
+}
+.tx-fund-split > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.tx-fund-split .k { font-size: var(--text-12); color: var(--text-subtle); }
+.tx-fund-split .v { font-size: var(--text-14); color: var(--text-default); font-variant-numeric: tabular-nums; }
+.tx-fund-split .v.strong { color: var(--text-strong); font-weight: var(--w-medium); }
+@media (max-width: 480px) { .tx-fund-split { grid-template-columns: 1fr; gap: 10px; } }
+
+/* the clock. Amber under five minutes, which is the one state change it has. */
+.tx-count { display: flex; align-items: baseline; gap: 10px; margin-top: 16px; }
+.tx-count .tc-clock {
+  font-family: var(--font-num); font-variant-numeric: tabular-nums;
+  font-size: 22px; font-weight: var(--w-title); letter-spacing: -0.01em;
+  color: var(--text-strong);
+}
+.tx-count .tc-lbl { font-size: var(--text-13); color: var(--text-subtle); }
+.tx-count.low .tc-clock { color: var(--warning-text); }
+.tx-fund-meta { margin-top: 10px; font-size: var(--text-13); color: var(--text-subtle); line-height: 1.5; }

@@ -318,6 +318,41 @@
     renderBody(el);
   }
 
+  // ————— the mini trade object —————
+  // The dashboard's one action, inline. It carries intent to the Trade screen
+  // rather than pricing here: no quote is fetched, nothing is locked.
+  function miniTradeHtml() {
+    if (Data.state.role === "viewer") return "";
+    var fiats = ["AED", "USD", "EUR", "BHD"].filter(function (c) { return Data.railLive(c); });
+    if (!fiats.length) return "";
+    return '<div class="db-mini" id="dbMini">' +
+      '<div class="dbm-row">' +
+        '<span class="dbm-lead">Buy</span>' +
+        '<span class="dbm-cur">' + UI.ccy("USDT", { label: false }) + "<span>USDT</span></span>" +
+        '<span class="dbm-lead">with</span>' +
+        '<select class="select dbm-sel" id="dbmCur" aria-label="Pay with">' +
+          fiats.map(function (c) { return '<option value="' + c + '">' + c + "</option>"; }).join("") +
+        "</select>" +
+      "</div>" +
+      '<div class="dbm-row dbm-act">' +
+        '<input class="input dbm-amt" id="dbmAmt" inputmode="decimal" autocomplete="off" placeholder="Amount in USDT">' +
+        '<button class="btn btn-primary" id="dbmGo" type="button">Trade</button>' +
+      "</div></div>";
+  }
+
+  function wireMini(el) {
+    var amt = el.querySelector("#dbmAmt");
+    if (!amt) return;
+    if (UI.amountInput) UI.amountInput(amt, { dp: 0 });
+    function go() {
+      var t = App.screen("trade");
+      if (t && t.setDraft) t.setDraft(el.querySelector("#dbmCur").value, amt.value);
+      App.go("trade");
+    }
+    el.querySelector("#dbmGo").addEventListener("click", go);
+    amt.addEventListener("keydown", function (e) { if (e.key === "Enter") go(); });
+  }
+
   function renderBody(el) {
     var S = Data.state;
     var fr = S.firstRun;
@@ -332,7 +367,8 @@
       '<div class="bal-hero"><div>' +
         '<div class="bal-label" id="dbHeroLabel">' + heroLabelHtml() + "</div>" +
         '<div class="bal-value" id="dbHeroVal">' + UI.moneyHero(S.totalCur, heroTotal()) + "</div>" +
-      "</div></div>";
+      "</div></div>" +
+      miniTradeHtml();
 
     if (S.stale) {
       h += '<div class="note note-warning mt-16">Balance feed interrupted. Showing last-known values; it re-syncs automatically.</div>';
@@ -407,17 +443,17 @@
 
     paint("dbStrip", stripHtml(), "strip");
     wireDnd(document.getElementById("dbStrip"));
+    wireMini(el);
     requestAnimationFrame(function () { wireDnd(document.getElementById("dbStrip")); });
     paint("dbActivity", activityHtml(), "act");
     return true;
   }
 
   App.registerScreen("dashboard", {
-    title: "Dashboard",
-    actions: function () {
-      if (Data.state.role === "viewer") return "";
-      return '<button class="btn btn-primary" data-go-trade type="button">Get quote</button>';
-    },
+    // No title and no top-right action (Hamis, 2026-09-15): the dashboard opens
+    // on what you hold and the one thing you came to do. The trade entry is the
+    // mini object under the hero, so a second button would be the same action twice.
+    title: "",
     zone: "app",
     render: render,
     // prefs (role, rails, stale, first run) change the composition and the
